@@ -163,7 +163,7 @@ public class DashboardUpdater implements Closeable {
                         components.add(TextDisplay.of(errorMessage));
                     } else {
                         components.add(TextDisplay.of("### " + cachedGameState.activeSessionName()));
-                        components.add(TextDisplay.of(formatDuration(cachedGameState.totalGameDuration())));
+                        components.add(TextDisplay.of("Game Duration: " + formatDuration(cachedGameState.totalGameDuration())));
                         components.add(TextDisplay.of("### Current Players\n" + cachedGameState.connectedPlayerCount() + "/" + cachedGameState.playerLimit()));
                         components.add(TextDisplay.of("### Average Tick Rate\n" + cachedGameState.averageTickRate()));
                     }

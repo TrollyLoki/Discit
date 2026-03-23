@@ -44,6 +44,7 @@ import net.trollyloki.jicsit.server.https.exception.PasswordlessLoginNotPossible
 import net.trollyloki.jicsit.server.query.QueryApi;
 import net.trollyloki.jicsit.server.query.ServerState;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -202,7 +203,7 @@ public class InteractionListener extends ListenerAdapter {
         GuildManager guildManager = getGuildManager(event);
         guildManager.setDashboardChannel(selection.getId());
 
-        event.reply("Dashboard channel set to " + selection.getAsMention()).setEphemeral(true).queue();
+        event.reply(event.getUser().getAsMention() + " set the dashboard channel to " + selection.getAsMention()).queue();
     }
 
     private void onSelectAdminRole(EntitySelectInteractionEvent event) {
@@ -211,9 +212,8 @@ public class InteractionListener extends ListenerAdapter {
         GuildManager guildManager = getGuildManager(event);
         guildManager.setAdminRole(selection.getId());
 
-        event.reply("Administrator role set to " + selection.getAsMention())
-                .setAllowedMentions(Collections.emptySet())
-                .setEphemeral(true).queue();
+        event.reply(event.getUser().getAsMention() + " set the administrator role to " + selection.getAsMention())
+                .setAllowedMentions(Collections.singleton(Message.MentionType.USER)).queue();
     }
 
     private void onCancel(ButtonInteractionEvent event) {
@@ -280,25 +280,32 @@ public class InteractionListener extends ListenerAdapter {
             return;
         }
 
-        // Check if the server is unclaimed
         event.deferEdit().queue();
+        event.getHook().deleteOriginal().queue();
+
+        String name;
+        try (QueryApi queryApi = server.queryApi(Duration.ofSeconds(3))) {
+            name = "**" + serverDisplayName(queryApi.pollServerState().name()) + "**";
+        } catch (Exception e) {
+            name = "a server";
+        }
+        event.getHook().sendMessage(event.getUser().getAsMention() + " added " + name).queue();
+
+        // Check if the server is unclaimed
         CompletableFuture.runAsync(() -> {
             try {
                 server.httpsApi(Duration.ofSeconds(3)).passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
 
-                event.getHook().editOriginalComponents(
+                event.getHook().sendMessageComponents(
                         TextDisplay.of("The server you just added is currently unclaimed"),
                         TextDisplay.of("Would you like to claim it now?"),
                         ActionRow.of(
                                 Button.success("claim:" + serverId, "Yes"),
                                 Button.danger("cancel", "No")
                         )
-                ).useComponentsV2().queue();
+                ).useComponentsV2().setEphemeral(true).queue();
             } catch (Exception e) {
                 // Could not log in as initial admin so the server must be claimed already
-                event.getHook().editOriginalComponents(TextDisplay.of("Server added"))
-                        .useComponentsV2().queue();
-
                 if (!(e instanceof PasswordlessLoginNotPossibleException)) {
                     e.printStackTrace();
                 }
@@ -361,8 +368,8 @@ public class InteractionListener extends ListenerAdapter {
                 httpsApi.passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
                 httpsApi.claimServer(name.getAsString(), password1.getAsString());
 
-                event.getHook().editOriginalComponents(TextDisplay.of("Successfully claimed the server"))
-                        .useComponentsV2().queue();
+                event.getHook().deleteOriginal().queue();
+                event.getHook().sendMessage(event.getUser().getAsMention() + " successfully claimed **" + serverDisplayName(name.getAsString()) + "**").queue();
             } catch (ApiException e) {
                 event.getHook().editOriginalComponents(TextDisplay.of("Unable to claim the server: " + e.getMessage()))
                         .useComponentsV2().queue();
@@ -375,7 +382,7 @@ public class InteractionListener extends ListenerAdapter {
             }
 
             String token = generateToken(httpsApi);
-            verifyAndSetToken(event.getHook(), guildManager, serverId, token);
+            verifyAndSetToken(event, guildManager, serverId, name.getAsString(), token);
         });
     }
 
@@ -448,12 +455,18 @@ public class InteractionListener extends ListenerAdapter {
 
     private void onRemove(ButtonInteractionEvent event, UUID serverId) {
         GuildManager guildManager = getGuildManager(event);
-        guildManager.removeServer(serverId);
+        Server server = guildManager.removeServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
 
         event.editComponents(
                 TextDisplay.of("Server removed"),
                 serverSelectForDetails(guildManager)
         ).useComponentsV2().queue();
+
+        event.getHook().sendMessage(event.getUser().getAsMention() + " removed **" + serverDisplayName(server.getName()) + "**").queue();
     }
 
     private void onRefresh(ButtonInteractionEvent event, UUID serverId) {
@@ -502,7 +515,7 @@ public class InteractionListener extends ListenerAdapter {
             return;
         }
 
-        event.deferReply(true).queue();
+        event.deferEdit().queue();
         CompletableFuture.runAsync(() -> {
             String token = authentication.getAsString();
 
@@ -515,16 +528,16 @@ public class InteractionListener extends ListenerAdapter {
 
                     token = generateToken(httpsApi);
                 } catch (ApiException e) {
-                    event.getHook().editOriginal("Unable to generate token: " + e.getMessage()).queue();
+                    event.getHook().sendMessage("Unable to generate token: " + e.getMessage()).setEphemeral(true).queue();
                     return;
                 } catch (Exception e) {
-                    event.getHook().editOriginal("Failed to generate token").queue();
+                    event.getHook().sendMessage("Failed to generate token").setEphemeral(true).queue();
                     e.printStackTrace();
                     return;
                 }
             }
 
-            verifyAndSetToken(event.getHook(), guildManager, serverId, token);
+            verifyAndSetToken(event, guildManager, serverId, null, token);
         });
     }
 
@@ -533,10 +546,10 @@ public class InteractionListener extends ListenerAdapter {
         return output.substring(output.indexOf(':') + 1).trim();
     }
 
-    private void verifyAndSetToken(InteractionHook hook, GuildManager guildManager, UUID serverId, String token) {
+    private void verifyAndSetToken(ModalInteractionEvent event, GuildManager guildManager, UUID serverId, @Nullable String serverName, String token) {
         Server server = guildManager.getServer(serverId);
         if (server == null) {
-            hook.sendMessage("Unknown server").setEphemeral(true).queue();
+            event.getHook().sendMessage("Unknown server").setEphemeral(true).queue();
             return;
         }
 
@@ -544,11 +557,11 @@ public class InteractionListener extends ListenerAdapter {
         try {
             PrivilegeLevel privilegeLevel = PrivilegeLevel.ofToken(token);
             if (privilegeLevel != PrivilegeLevel.API_TOKEN) {
-                hook.sendMessage("Incorrect token type").setEphemeral(true).queue();
+                event.getHook().sendMessage("Incorrect token type").setEphemeral(true).queue();
                 return;
             }
         } catch (IllegalArgumentException e) {
-            hook.sendMessage("Incorrect token format").setEphemeral(true).queue();
+            event.getHook().sendMessage("Incorrect token format").setEphemeral(true).queue();
             return;
         }
 
@@ -558,10 +571,10 @@ public class InteractionListener extends ListenerAdapter {
             httpsApi.setToken(token);
             httpsApi.verifyAuthenticationToken();
         } catch (InvalidTokenException e) {
-            hook.sendMessage("Token is invalid").setEphemeral(true).queue();
+            event.getHook().sendMessage("Token is invalid").setEphemeral(true).queue();
             return;
         } catch (Exception e) {
-            hook.sendMessage("Failed to verify token").setEphemeral(true).queue();
+            event.getHook().sendMessage("Failed to verify token").setEphemeral(true).queue();
             e.printStackTrace();
             return;
         }
@@ -569,13 +582,21 @@ public class InteractionListener extends ListenerAdapter {
         // Save token
         guildManager.setServerToken(serverId, token);
 
-        hook.sendMessage("Authentication successful").setEphemeral(true).queue();
+        serverName = serverName != null ? serverName : server.getName();
+        event.getHook().sendMessage(event.getUser().getAsMention() + " added an authentication token for **" + serverDisplayName(serverName) + "**").queue();
     }
 
     private void onDeauthenticate(ButtonInteractionEvent event, UUID serverId) {
-        getGuildManager(event).setServerToken(serverId, null);
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
 
-        event.reply("Authentication removed").setEphemeral(true).queue();
+        guildManager.setServerToken(serverId, null);
+
+        event.reply(event.getUser().getAsMention() + " deleted the authentication token for **" + serverDisplayName(server.getName()) + "**").queue();
     }
 
     private void onReloadCommand(SlashCommandInteractionEvent event) {

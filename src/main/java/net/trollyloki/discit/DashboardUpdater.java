@@ -1,0 +1,212 @@
+package net.trollyloki.discit;
+
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.container.ContainerChildComponent;
+import net.dv8tion.jda.api.components.separator.Separator;
+import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.utils.TimeFormat;
+import net.trollyloki.jicsit.server.https.HttpsApi;
+import net.trollyloki.jicsit.server.https.PrivilegeLevel;
+import net.trollyloki.jicsit.server.https.RequestException;
+import net.trollyloki.jicsit.server.https.ServerGameState;
+import net.trollyloki.jicsit.server.https.exception.ApiException;
+import net.trollyloki.jicsit.server.query.QueryApi;
+import net.trollyloki.jicsit.server.query.ServerState;
+import net.trollyloki.jicsit.server.query.ServerStatus;
+import net.trollyloki.jicsit.server.query.ServerSubState;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
+import java.awt.*;
+import java.io.Closeable;
+import java.net.SocketTimeoutException;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+import static net.trollyloki.discit.FormattingUtils.formatDuration;
+import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+
+@NullMarked
+public class DashboardUpdater implements Closeable {
+
+    private static final Color
+            RED = Color.getHSBColor(.000f, .75f, 1.00f),
+            YELLOW = Color.getHSBColor(.125f, .75f, 1.00f),
+            GREEN = Color.getHSBColor(.375f, .75f, 1.00f);
+
+    private final JDA jda;
+    private final GuildManager guildManager;
+    private final UUID serverId;
+    private final Server server;
+
+    private final ScheduledExecutorService executor;
+
+    private @Nullable ScheduledFuture<?> scheduled;
+    private @Nullable QueryApi queryApi;
+
+    public DashboardUpdater(JDA jda, GuildManager guildManager, UUID serverId) {
+        this.jda = jda;
+        this.guildManager = guildManager;
+        this.serverId = serverId;
+
+        Server server = guildManager.getServer(serverId);
+        if (server == null) throw new IllegalArgumentException("Unknown server ID: " + serverId);
+        this.server = server;
+
+        this.executor = Executors.newSingleThreadScheduledExecutor();
+    }
+
+    public synchronized void start() {
+        if (scheduled == null) {
+            scheduled = executor.scheduleAtFixedRate(this::update, 0, 500, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    public synchronized void stop() {
+        if (scheduled != null) {
+            scheduled.cancel(false);
+            scheduled = null;
+        }
+    }
+
+    @Override
+    public void close() {
+        if (queryApi != null) {
+            queryApi.close();
+        }
+        executor.shutdownNow();
+    }
+
+    private @Nullable ServerStatus previousServerStatus;
+    private short previousGameStateVersion;
+
+    private @Nullable ServerGameState cachedGameState;
+
+    public void refresh() {
+        executor.execute(() -> {
+            previousServerStatus = null;
+            previousGameStateVersion = 0;
+        });
+    }
+
+    private void update() {
+        try {
+
+            String channelId = guildManager.getDashboardChannel();
+            if (channelId == null) return;
+
+            TextChannel channel = jda.getTextChannelById(channelId);
+            if (channel == null) {
+                throw new IllegalStateException("Cannot access dashboard channel " + channelId);
+            }
+
+            ServerStatus serverStatus;
+            short gameStateVersion;
+            try {
+                if (queryApi == null) queryApi = server.queryApi(Duration.ofSeconds(5));
+                ServerState serverState = queryApi.pollServerState();
+
+                // Update name if it changed
+                if (!serverState.name().equals(server.getName())) {
+                    guildManager.setServerName(serverId, serverState.name());
+                }
+
+                serverStatus = serverState.status();
+                gameStateVersion = serverState.subStateVersion(ServerSubState.SERVER_GAME_STATE);
+            } catch (SocketTimeoutException e) {
+                serverStatus = ServerStatus.OFFLINE;
+                gameStateVersion = 0;
+            }
+
+            //TODO: Always retrying if we don't have an up-to-date cached game state can lead to HTTPS spam
+            boolean queryHttps = serverStatus.isHttpsApiAvailable() && (cachedGameState == null || gameStateVersion != previousGameStateVersion);
+            String errorMessage = null;
+            if (queryHttps) {
+                System.out.println("QUERYING HTTPS API for version " + gameStateVersion);
+                cachedGameState = null;
+                try {
+                    HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(5));
+                    if (httpsApi.getPrivilegeLevel() == PrivilegeLevel.NOT_AUTHENTICATED) {
+                        httpsApi.passwordlessLogin(PrivilegeLevel.CLIENT);
+                    }
+                    cachedGameState = httpsApi.queryServerState();
+                } catch (ApiException e) {
+                    errorMessage = e.getMessage();
+                } catch (RequestException e) {
+                    errorMessage = "Failed to query server game state";
+                    e.printStackTrace();
+                }
+            }
+
+            if (serverStatus != previousServerStatus || queryHttps) {
+                System.out.println("UPDATING DASHBOARD MESSAGE");
+                List<ContainerChildComponent> components = new ArrayList<>();
+
+                components.add(TextDisplay.of("## " + serverDisplayName(server.getName())));
+                components.add(TextDisplay.of(serverStatus.toString()));
+
+                if (errorMessage != null || serverStatus == ServerStatus.PLAYING && cachedGameState != null) {
+                    components.add(Separator.createDivider(Separator.Spacing.SMALL));
+                    if (errorMessage != null) {
+                        components.add(TextDisplay.of(errorMessage));
+                    } else {
+                        components.add(TextDisplay.of("### " + cachedGameState.activeSessionName()));
+                        components.add(TextDisplay.of(formatDuration(cachedGameState.totalGameDuration())));
+                        components.add(TextDisplay.of("### Current Players\n" + cachedGameState.connectedPlayerCount() + "/" + cachedGameState.playerLimit()));
+                        components.add(TextDisplay.of("### Average Tick Rate\n" + cachedGameState.averageTickRate()));
+                    }
+                }
+
+                components.add(Separator.createDivider(Separator.Spacing.SMALL));
+                components.add(TextDisplay.of("-# Last updated " + TimeFormat.RELATIVE.now()));
+                components.add(ActionRow.of(
+                        Button.primary("refresh:" + serverId, "Refresh")
+                ));
+
+                Container container = Container.of(components).withAccentColor(switch (serverStatus) {
+                    case OFFLINE -> RED;
+                    case IDLE, LOADING -> YELLOW;
+                    case PLAYING -> GREEN;
+                });
+
+                Message message = null;
+                if (guildManager.getDashboardMessage(serverId) != null) {
+                    try {
+                        // try to edit existing message
+                        message = channel.editMessageComponentsById(guildManager.getDashboardMessage(serverId), container)
+                                .useComponentsV2().complete();
+                    } catch (ErrorResponseException e) {
+                        if (e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE)
+                            throw e;
+                    }
+                }
+                if (message == null) {
+                    // send a new message
+                    message = channel.sendMessageComponents(container)
+                            .useComponentsV2().complete();
+                    guildManager.setDashboardMessage(serverId, message.getId());
+                }
+
+                previousServerStatus = serverStatus;
+                previousGameStateVersion = gameStateVersion;
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+}

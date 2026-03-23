@@ -30,6 +30,7 @@ import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -92,6 +93,7 @@ public class DashboardUpdater implements Closeable {
 
     private @Nullable ServerStatus previousServerStatus;
     private short previousGameStateVersion;
+    private @Nullable String previousName;
 
     private @Nullable ServerGameState cachedGameState;
 
@@ -115,6 +117,7 @@ public class DashboardUpdater implements Closeable {
 
             ServerStatus serverStatus;
             short gameStateVersion;
+            String name;
             try {
                 if (queryApi == null) queryApi = server.queryApi(Duration.ofSeconds(5));
                 ServerState serverState = queryApi.pollServerState();
@@ -126,9 +129,11 @@ public class DashboardUpdater implements Closeable {
 
                 serverStatus = serverState.status();
                 gameStateVersion = serverState.subStateVersion(ServerSubState.SERVER_GAME_STATE);
+                name = serverState.name();
             } catch (SocketTimeoutException e) {
                 serverStatus = ServerStatus.OFFLINE;
                 gameStateVersion = 0;
+                name = server.getName();
             }
 
             //TODO: Always retrying if we don't have an up-to-date cached game state can lead to HTTPS spam
@@ -151,11 +156,11 @@ public class DashboardUpdater implements Closeable {
                 }
             }
 
-            if (serverStatus != previousServerStatus || queryHttps) {
+            if (serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName)) {
                 System.out.println("UPDATING DASHBOARD MESSAGE");
                 List<ContainerChildComponent> components = new ArrayList<>();
 
-                components.add(TextDisplay.of("## " + serverDisplayName(server.getName())));
+                components.add(TextDisplay.of("## " + serverDisplayName(name)));
                 components.add(TextDisplay.of(serverStatus.toString()));
 
                 if (errorMessage != null || serverStatus == ServerStatus.PLAYING && cachedGameState != null) {
@@ -202,6 +207,7 @@ public class DashboardUpdater implements Closeable {
 
                 previousServerStatus = serverStatus;
                 previousGameStateVersion = gameStateVersion;
+                previousName = name;
             }
 
         } catch (Exception e) {

@@ -2,6 +2,8 @@ package net.trollyloki.discit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.trollyloki.discit.data.GuildData;
 import net.trollyloki.discit.data.ServerData;
@@ -56,12 +58,24 @@ public class GuildManager {
         }
     }
 
-    public @Nullable String getAdminRole() {
-        return data.getAdminRoleId();
+    public Guild getGuild() {
+        Guild guild = jda.getGuildById(guildId);
+        if (guild == null) {
+            throw new IllegalStateException("Guild missing: " + guildId);
+        }
+        return guild;
     }
 
-    public @Nullable String getDashboardChannel() {
-        return data.getDashboardChannelId();
+    public @Nullable Role getAdminRole() {
+        String roleId = data.getAdminRoleId();
+        if (roleId == null) return null;
+        return getGuild().getRoleById(roleId);
+    }
+
+    public @Nullable TextChannel getDashboardChannel() {
+        String channelId = data.getDashboardChannelId();
+        if (channelId == null) return null;
+        return getGuild().getTextChannelById(channelId);
     }
 
     public void setAdminRole(@Nullable String roleId) {
@@ -97,7 +111,7 @@ public class GuildManager {
     }
 
     private void initServer(UUID serverId) {
-        DashboardUpdater updater = new DashboardUpdater(jda, this, serverId);
+        DashboardUpdater updater = new DashboardUpdater(this, serverId);
         updaters.put(serverId, updater);
         updater.start();
     }
@@ -139,11 +153,11 @@ public class GuildManager {
         save();
     }
 
-    public @Nullable String getDashboardMessage(UUID serverId) {
+    public @Nullable String getDashboardMessageId(UUID serverId) {
         return data.getServers().get(serverId).getDashboardMessageId();
     }
 
-    public void setDashboardMessage(UUID serverId, @Nullable String messageId) {
+    public void setDashboardMessageId(UUID serverId, @Nullable String messageId) {
         data.getServers().get(serverId).setDashboardMessageId(messageId);
         save();
     }

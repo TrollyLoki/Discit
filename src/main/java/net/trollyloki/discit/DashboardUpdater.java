@@ -1,6 +1,5 @@
 package net.trollyloki.discit;
 
-import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.container.Container;
@@ -48,7 +47,6 @@ public class DashboardUpdater implements Closeable {
             YELLOW = Color.getHSBColor(.125f, .75f, 1.00f),
             GREEN = Color.getHSBColor(.375f, .75f, 1.00f);
 
-    private final JDA jda;
     private final GuildManager guildManager;
     private final UUID serverId;
     private final Server server;
@@ -58,8 +56,7 @@ public class DashboardUpdater implements Closeable {
     private @Nullable ScheduledFuture<?> scheduled;
     private @Nullable QueryApi queryApi;
 
-    public DashboardUpdater(JDA jda, GuildManager guildManager, UUID serverId) {
-        this.jda = jda;
+    public DashboardUpdater(GuildManager guildManager, UUID serverId) {
         this.guildManager = guildManager;
         this.serverId = serverId;
 
@@ -107,12 +104,9 @@ public class DashboardUpdater implements Closeable {
     private void update() {
         try {
 
-            String channelId = guildManager.getDashboardChannel();
-            if (channelId == null) return;
-
-            TextChannel channel = jda.getTextChannelById(channelId);
+            TextChannel channel = guildManager.getDashboardChannel();
             if (channel == null) {
-                throw new IllegalStateException("Cannot access dashboard channel " + channelId);
+                throw new IllegalStateException("Cannot access dashboard channel");
             }
 
             ServerStatus serverStatus;
@@ -188,10 +182,10 @@ public class DashboardUpdater implements Closeable {
                 });
 
                 Message message = null;
-                if (guildManager.getDashboardMessage(serverId) != null) {
+                if (guildManager.getDashboardMessageId(serverId) != null) {
                     try {
                         // try to edit existing message
-                        message = channel.editMessageComponentsById(guildManager.getDashboardMessage(serverId), container)
+                        message = channel.editMessageComponentsById(guildManager.getDashboardMessageId(serverId), container)
                                 .useComponentsV2().complete();
                     } catch (ErrorResponseException e) {
                         if (e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE)
@@ -202,7 +196,7 @@ public class DashboardUpdater implements Closeable {
                     // send a new message
                     message = channel.sendMessageComponents(container)
                             .useComponentsV2().complete();
-                    guildManager.setDashboardMessage(serverId, message.getId());
+                    guildManager.setDashboardMessageId(serverId, message.getId());
                 }
 
                 previousServerStatus = serverStatus;

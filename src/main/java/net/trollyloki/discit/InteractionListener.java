@@ -14,7 +14,9 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
@@ -167,16 +169,16 @@ public class InteractionListener extends ListenerAdapter {
         EntitySelectMenu.Builder dashboardChannelSelect = EntitySelectMenu
                 .create("dashboard-channel", EntitySelectMenu.SelectTarget.CHANNEL)
                 .setChannelTypes(ChannelType.TEXT);
-        String currentDashboardChannelId = guildManager.getDashboardChannel();
-        if (currentDashboardChannelId != null) {
-            dashboardChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.channel(currentDashboardChannelId));
+        TextChannel currentDashboardChannel = guildManager.getDashboardChannel();
+        if (currentDashboardChannel != null) {
+            dashboardChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentDashboardChannel));
         }
 
         EntitySelectMenu.Builder adminRoleSelect = EntitySelectMenu
                 .create("admin-role", EntitySelectMenu.SelectTarget.ROLE);
-        String currentAdminRoleId = guildManager.getAdminRole();
-        if (currentAdminRoleId != null) {
-            adminRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.role(currentAdminRoleId));
+        Role currentAdminRole = guildManager.getAdminRole();
+        if (currentAdminRole != null) {
+            adminRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentAdminRole));
         }
 
         String title = "## Settings";

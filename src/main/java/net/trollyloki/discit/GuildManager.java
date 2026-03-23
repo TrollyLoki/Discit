@@ -3,6 +3,7 @@ package net.trollyloki.discit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.trollyloki.discit.data.GuildData;
@@ -64,6 +65,10 @@ public class GuildManager {
             throw new IllegalStateException("Guild missing: " + guildId);
         }
         return guild;
+    }
+
+    public boolean hasAdminRole(Member member) {
+        return member.getUnsortedRoles().contains(getAdminRole());
     }
 
     public @Nullable Role getAdminRole() {

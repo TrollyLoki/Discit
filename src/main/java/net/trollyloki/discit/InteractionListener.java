@@ -1,5 +1,6 @@
 package net.trollyloki.discit;
 
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.attachmentupload.AttachmentUpload;
 import net.dv8tion.jda.api.components.buttons.Button;
@@ -13,11 +14,11 @@ import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.IMentionable;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
-import net.dv8tion.jda.api.events.interaction.GenericInteractionCreateEvent;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -25,7 +26,9 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
@@ -77,7 +80,7 @@ public class InteractionListener extends ListenerAdapter {
         this.discit = discit;
 
         discit.getJDA().updateCommands().addCommands(
-                Commands.slash("settings", "Changes settings"),
+                Commands.slash("settings", "Change settings"),
                 Commands.slash("add", "Add a server").addOptions(
                         new OptionData(OptionType.STRING, "host", "Server host address")
                                 .setRequired(true),
@@ -156,14 +159,35 @@ public class InteractionListener extends ListenerAdapter {
         }
     }
 
-    private GuildManager getGuildManager(GenericInteractionCreateEvent event) {
+    private GuildManager getGuildManager(Interaction event) {
         Guild guild = event.getGuild();
         if (guild == null) //FIXME: Is this going to cause problems?
             throw new UnsupportedOperationException("This operation can only be done from within a guild");
         return discit.getGuildManager(guild.getId());
     }
 
+    private boolean cannotManageGuild(IReplyCallback callback) {
+        Member member = callback.getMember();
+        if (member != null && member.hasPermission(Permission.MANAGE_SERVER)) {
+            return false;
+        }
+        callback.reply("You do not have permission to do that!").queue();
+        return true;
+    }
+
+    private boolean missingAdminRole(IReplyCallback callback) {
+        Member member = callback.getMember();
+        if (member != null && getGuildManager(callback).hasAdminRole(member)) {
+            return false;
+        }
+        callback.reply("You do not have permission to do that!").queue();
+        return true;
+    }
+
     private void onSettings(SlashCommandInteractionEvent event) {
+        if (cannotManageGuild(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
 
         EntitySelectMenu.Builder dashboardChannelSelect = EntitySelectMenu
@@ -200,6 +224,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onSelectDashboardChannel(EntitySelectInteractionEvent event) {
+        if (cannotManageGuild(event))
+            return;
+
         IMentionable selection = event.getValues().get(0);
 
         GuildManager guildManager = getGuildManager(event);
@@ -209,6 +236,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onSelectAdminRole(EntitySelectInteractionEvent event) {
+        if (cannotManageGuild(event))
+            return;
+
         IMentionable selection = event.getValues().get(0);
 
         GuildManager guildManager = getGuildManager(event);
@@ -225,6 +255,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onAdd(SlashCommandInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         String host = event.getOption("host", OptionMapping::getAsString);
         if (host == null) {
             event.reply("Please provide a host address").setEphemeral(true).queue();
@@ -267,6 +300,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onAddRetry(ButtonInteractionEvent event, String host, int port) {
+        if (missingAdminRole(event))
+            return;
+
         event.editComponents(ActionRow.of(
                 Button.primary("null", "Retrying...").asDisabled()
         )).queue();
@@ -274,6 +310,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onAddConfirm(ButtonInteractionEvent event, String host, int port, String fingerprint) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         UUID serverId = guildManager.addServer(host, port, fingerprint);
         Server server = guildManager.getServer(serverId);
@@ -316,6 +355,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onStartClaim(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
         Server server = getGuildManager(event).getServer(serverId);
         if (server == null) {
             event.reply("Unknown server").setEphemeral(true).queue();
@@ -331,6 +373,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onClaim(ModalInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         Server server = guildManager.getServer(serverId);
         if (server == null) {
@@ -412,6 +457,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onListCommand(SlashCommandInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         int serverCount = guildManager.getServers().size();
 
@@ -428,6 +476,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onListDetails(StringSelectInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         UUID serverId = UUID.fromString(event.getValues().get(0));
         Server server = guildManager.getServer(serverId);
@@ -456,6 +507,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onRemove(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         Server server = guildManager.removeServer(serverId);
         if (server == null) {
@@ -472,6 +526,8 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onRefresh(ButtonInteractionEvent event, UUID serverId) {
+        // no permission required
+
         GuildManager guildManager = getGuildManager(event);
         guildManager.refreshServer(serverId);
 
@@ -479,6 +535,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onAuthenticate(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
         Server server = getGuildManager(event).getServer(serverId);
         if (server == null) {
             event.reply("Unknown server").setEphemeral(true).queue();
@@ -498,6 +557,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onAuthentication(ModalInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         Server server = guildManager.getServer(serverId);
         if (server == null) {
@@ -548,7 +610,7 @@ public class InteractionListener extends ListenerAdapter {
         return output.substring(output.indexOf(':') + 1).trim();
     }
 
-    private void verifyAndSetToken(ModalInteractionEvent event, GuildManager guildManager, UUID serverId, @Nullable String serverName, String token) {
+    private static void verifyAndSetToken(ModalInteractionEvent event, GuildManager guildManager, UUID serverId, @Nullable String serverName, String token) {
         Server server = guildManager.getServer(serverId);
         if (server == null) {
             event.getHook().sendMessage("Unknown server").setEphemeral(true).queue();
@@ -589,6 +651,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onDeauthenticate(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
         GuildManager guildManager = getGuildManager(event);
         Server server = guildManager.getServer(serverId);
         if (server == null) {
@@ -602,6 +667,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onReloadCommand(SlashCommandInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         Map<UUID, Server> servers = getGuildManager(event).getServers();
         if (servers.isEmpty()) {
             event.reply("There are no servers that can be reloaded").setEphemeral(true).queue();
@@ -618,6 +686,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onReloadSessions(ModalInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         ModalMapping serverIds = event.getValue("servers");
         if (serverIds == null) {
             event.reply("Please select servers").setEphemeral(true).queue();
@@ -669,6 +740,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onSaveCommand(SlashCommandInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         Map<UUID, Server> servers = getGuildManager(event).getServers();
         if (servers.isEmpty()) {
             event.reply("There are no servers that can be saved").setEphemeral(true).queue();
@@ -687,6 +761,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onSave(ModalInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         ModalMapping serverIds = event.getValue("server");
         if (serverIds == null) {
             event.reply("Please select a server").setEphemeral(true).queue();
@@ -763,6 +840,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onUploadCommand(SlashCommandInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         Map<UUID, Server> servers = getGuildManager(event).getServers();
         if (servers.isEmpty()) {
             event.reply("There are no servers that can be uploaded to").setEphemeral(true).queue();
@@ -773,6 +853,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onUploadFromMessage(MessageContextInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         List<Message.Attachment> attachments = event.getTarget().getAttachments();
         if (attachments.isEmpty()) {
             event.reply("That message does not have any attachments").setEphemeral(true).queue();
@@ -801,6 +884,9 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void onUpload(ModalInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
         ModalMapping serverIds = event.getValue("servers");
         if (serverIds == null) {
             event.reply("Please select servers").setEphemeral(true).queue();

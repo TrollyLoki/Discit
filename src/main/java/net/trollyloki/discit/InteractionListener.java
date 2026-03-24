@@ -20,6 +20,7 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -38,6 +39,7 @@ import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.FileUpload;
+import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import net.trollyloki.jicsit.save.SaveHeader;
@@ -68,6 +70,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -79,6 +82,9 @@ import static net.trollyloki.discit.Utils.validateHostAddress;
 public class InteractionListener extends ListenerAdapter {
 
     private final Discit discit;
+
+    //FIXME: This is a data leak, but it should be fine for now considering how infrequently the message context command is going to be used
+    private final Map<UUID, CachedAttachmentInfo> attachmentCache = new ConcurrentHashMap<>();
 
     public InteractionListener(Discit discit) {
         this.discit = discit;
@@ -916,10 +922,18 @@ public class InteractionListener extends ListenerAdapter {
         onUploadHelper(event, event, serverId, AttachmentUpload::of);
     }
 
+    private static List<Message.Attachment> findAllMessageAttachments(Message message) {
+        List<Message.Attachment> attachments = new ArrayList<>(message.getAttachments());
+        for (MessageSnapshot snapshot : message.getMessageSnapshots()) {
+            attachments.addAll(snapshot.getAttachments());
+        }
+        return attachments;
+    }
+
     private void onUploadFromMessage(MessageContextInteractionEvent event) {
-        List<Message.Attachment> attachments = event.getTarget().getAttachments();
+        List<Message.Attachment> attachments = findAllMessageAttachments(event.getTarget());
         if (attachments.isEmpty()) {
-            event.reply("That message does not have any attachments").setEphemeral(true).queue();
+            event.reply("Could not find any files attached to that message").setEphemeral(true).queue();
             return;
         }
 
@@ -927,10 +941,11 @@ public class InteractionListener extends ListenerAdapter {
             StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
             boolean first = true;
             for (Message.Attachment attachment : attachments) {
-                String value = event.getTarget().getId() + ":" + attachment.getId();
-                builder.addOption(attachment.getFileName(), value);
+                UUID value = UUID.randomUUID();
+                attachmentCache.put(value, new CachedAttachmentInfo(attachment.getUrl(), attachment.getFileName()));
+                builder.addOption(attachment.getFileName(), value.toString());
                 if (first) {
-                    builder.setDefaultValues(value);
+                    builder.setDefaultValues(value.toString());
                     first = false;
                 }
             }
@@ -1000,22 +1015,19 @@ public class InteractionListener extends ListenerAdapter {
             }
         }
 
-        Message.Attachment saveFileAttachment = null;
+        NamedAttachmentProxy saveFileAttachment = null;
 
         ModalMapping save = event.getValue("save");
         if (save != null) {
             switch (save.getType()) {
                 case FILE_UPLOAD -> {
-                    saveFileAttachment = save.getAsAttachmentList().get(0);
+                    saveFileAttachment = save.getAsAttachmentList().get(0).getProxy();
                 }
                 case STRING_SELECT -> {
-                    String[] ids = save.getAsStringList().get(0).split(":");
-                    Message message = event.getChannel().retrieveMessageById(ids[0]).complete();
-                    for (Message.Attachment attachment : message.getAttachments()) {
-                        if (attachment.getId().equals(ids[1])) {
-                            saveFileAttachment = attachment;
-                            break;
-                        }
+                    UUID value = UUID.fromString(save.getAsStringList().get(0));
+                    CachedAttachmentInfo info = attachmentCache.get(value);
+                    if (info != null) {
+                        saveFileAttachment = new NamedAttachmentProxy(info.url(), info.fileName());
                     }
                 }
             }
@@ -1040,7 +1052,7 @@ public class InteractionListener extends ListenerAdapter {
         String name = SaveFileReader.saveNameOf(saveFileAttachment.getFileName());
 
         event.deferReply(guildManager.isDashboard(event.getChannel())).queue();
-        saveFileAttachment.getProxy().download().whenComplete((stream, error) -> {
+        saveFileAttachment.download().whenComplete((stream, error) -> {
             if (stream == null) {
                 event.getHook().editOriginal("Failed to retrieve file").queue();
                 if (error != null) error.printStackTrace();

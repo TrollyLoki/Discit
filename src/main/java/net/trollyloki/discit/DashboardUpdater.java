@@ -94,11 +94,10 @@ public class DashboardUpdater implements Closeable {
 
     private @Nullable ServerGameState cachedGameState;
 
+    private boolean refresh = false;
+
     public void refresh() {
-        executor.execute(() -> {
-            previousServerStatus = null;
-            previousGameStateVersion = 0;
-        });
+        refresh = true;
     }
 
     private void update() {
@@ -150,7 +149,7 @@ public class DashboardUpdater implements Closeable {
                 }
             }
 
-            if (serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName)) {
+            if (refresh || serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName)) {
                 System.out.println("UPDATING DASHBOARD MESSAGE");
                 List<ContainerChildComponent> components = new ArrayList<>();
 
@@ -202,6 +201,8 @@ public class DashboardUpdater implements Closeable {
                 previousServerStatus = serverStatus;
                 previousGameStateVersion = gameStateVersion;
                 previousName = name;
+
+                refresh = false;
             }
 
         } catch (Exception e) {

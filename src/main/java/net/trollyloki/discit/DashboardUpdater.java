@@ -36,8 +36,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import static net.trollyloki.discit.FormattingUtils.formatDuration;
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+import static net.trollyloki.discit.Utils.formatDuration;
+import static net.trollyloki.discit.Utils.serverDisplayName;
 
 @NullMarked
 public class DashboardUpdater implements Closeable {

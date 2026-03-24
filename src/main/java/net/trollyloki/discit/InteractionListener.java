@@ -55,6 +55,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.net.InetAddress;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -68,8 +69,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static net.trollyloki.discit.FormattingUtils.defaultSaveName;
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+import static net.trollyloki.discit.Utils.defaultSaveName;
+import static net.trollyloki.discit.Utils.serverDisplayName;
+import static net.trollyloki.discit.Utils.validateHostAddress;
 
 @NullMarked
 public class InteractionListener extends ListenerAdapter {
@@ -271,8 +273,14 @@ public class InteractionListener extends ListenerAdapter {
     }
 
     private void tryAdd(InteractionHook hook, String host, int port) {
+        InetAddress address = validateHostAddress(host);
+        if (address == null) {
+            hook.editOriginal("Invalid address").queue();
+            return;
+        }
+
         CompletableFuture.runAsync(() -> {
-            try (QueryApi queryApi = QueryApi.of(host, port, Duration.ofSeconds(3))) {
+            try (QueryApi queryApi = QueryApi.of(address, port, Duration.ofSeconds(3))) {
 
                 ServerState serverState = queryApi.pollServerState();
                 String fingerprint = CertificateUtils.getServerFingerprint(host, port);
@@ -753,6 +761,7 @@ public class InteractionListener extends ListenerAdapter {
                 Label.of("Server", serverSelectMenu("server", servers)
                         .setPlaceholder("Select a server")
                         .build()),
+                //TODO: Limit length / check validity?
                 Label.of("Save Name", "Optional", TextInput.create("name", TextInputStyle.SHORT)
                         .setRequired(false)
                         .setPlaceholder("Session Name_DDMMYY-HHMMSS")

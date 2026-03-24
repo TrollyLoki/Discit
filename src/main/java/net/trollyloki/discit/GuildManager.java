@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import static net.trollyloki.discit.Utils.validateHostAddress;
+
 @NullMarked
 public class GuildManager {
 
@@ -102,6 +104,10 @@ public class GuildManager {
     }
 
     public synchronized UUID addServer(String host, int port, String fingerprint) {
+        if (validateHostAddress(host) == null) {
+            throw new IllegalArgumentException("Invalid host address");
+        }
+
         ServerData serverData = new ServerData(host, port, fingerprint);
 
         UUID serverId;

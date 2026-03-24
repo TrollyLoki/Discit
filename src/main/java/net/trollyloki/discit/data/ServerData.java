@@ -94,7 +94,7 @@ public class ServerData implements Server {
 
     @Override
     public QueryApi queryApi(Duration timeout) throws SocketException {
-        return QueryApi.of(getHost(), getPort(), timeout);
+        return QueryApi.of(host, port, timeout);
     }
 
     @Override

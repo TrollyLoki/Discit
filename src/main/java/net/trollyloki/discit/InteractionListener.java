@@ -140,7 +140,7 @@ public class InteractionListener extends ListenerAdapter {
             case "remove" -> onRemove(event, UUID.fromString(id[1]));
             case "authenticate" -> onAuthenticate(event, UUID.fromString(id[1]));
             case "deauthenticate" -> onDeauthenticate(event, UUID.fromString(id[1]));
-            case "refresh" -> onRefresh(event, UUID.fromString(id[1]));
+            case "dashboard-update" -> onUpdateDashboard(event, UUID.fromString(id[1]));
             case "dashboard-reload" -> onReloadFromDashboard(event, UUID.fromString(id[1]));
             case "dashboard-save" -> onSaveFromDashboard(event, UUID.fromString(id[1]));
             case "dashboard-upload" -> onUploadFromDashboard(event, UUID.fromString(id[1]));
@@ -701,11 +701,11 @@ public class InteractionListener extends ListenerAdapter {
         guildManager.logAction(event.getUser(), "removed the authentication token for **" + serverDisplayName(server.getName()) + "**");
     }
 
-    private void onRefresh(ButtonInteractionEvent event, UUID serverId) {
+    private void onUpdateDashboard(ButtonInteractionEvent event, UUID serverId) {
         // no permission required
 
         GuildManager guildManager = getGuildManager(event);
-        guildManager.refreshServer(serverId);
+        guildManager.updateServer(serverId);
 
         event.deferEdit().queue();
     }

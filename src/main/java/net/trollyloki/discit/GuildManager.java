@@ -171,10 +171,10 @@ public class GuildManager {
         return serverData;
     }
 
-    public void refreshServer(UUID serverId) {
+    public void updateServer(UUID serverId) {
         DashboardUpdater updater = updaters.get(serverId);
         if (updater != null) {
-            updater.refresh();
+            updater.update();
         }
     }
 

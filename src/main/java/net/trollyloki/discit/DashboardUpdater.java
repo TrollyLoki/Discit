@@ -69,7 +69,7 @@ public class DashboardUpdater implements Closeable {
 
     public synchronized void start() {
         if (scheduled == null) {
-            scheduled = executor.scheduleAtFixedRate(this::update, 0, 500, TimeUnit.MILLISECONDS);
+            scheduled = executor.scheduleAtFixedRate(this::run, 0, 500, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -94,13 +94,13 @@ public class DashboardUpdater implements Closeable {
 
     private @Nullable ServerGameState cachedGameState;
 
-    private boolean refresh = false;
+    private boolean update = false;
 
-    public void refresh() {
-        refresh = true;
+    public void update() {
+        update = true;
     }
 
-    private void update() {
+    private void run() {
         try {
 
             GuildMessageChannel channel = guildManager.getDashboardChannel();
@@ -149,7 +149,7 @@ public class DashboardUpdater implements Closeable {
                 }
             }
 
-            if (refresh || serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName)) {
+            if (update || serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName)) {
                 System.out.println("UPDATING DASHBOARD MESSAGE");
                 List<ContainerChildComponent> components = new ArrayList<>();
 
@@ -171,7 +171,7 @@ public class DashboardUpdater implements Closeable {
                 components.add(Separator.createDivider(Separator.Spacing.SMALL));
                 components.add(TextDisplay.of("-# Last updated " + TimeFormat.RELATIVE.now()));
                 components.add(ActionRow.of(
-                        Button.success("refresh:" + serverId, "Refresh"),
+                        Button.success("dashboard-update:" + serverId, "Update"),
                         Button.primary("dashboard-reload:" + serverId, "Reload"),
                         Button.secondary("dashboard-save:" + serverId, "Download Save"),
                         Button.secondary("dashboard-upload:" + serverId, "Upload Save")
@@ -205,7 +205,7 @@ public class DashboardUpdater implements Closeable {
                 previousGameStateVersion = gameStateVersion;
                 previousName = name;
 
-                refresh = false;
+                update = false;
             }
 
         } catch (Exception e) {

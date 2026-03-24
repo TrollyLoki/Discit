@@ -28,6 +28,7 @@ import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionE
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.InteractionHook;
+import net.dv8tion.jda.api.interactions.callbacks.IModalCallback;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -61,6 +62,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -135,9 +137,12 @@ public class InteractionListener extends ListenerAdapter {
             case "add-confirm" -> onAddConfirm(event, id[1], Integer.parseInt(id[2]), id[3]);
             case "claim" -> onStartClaim(event, UUID.fromString(id[1]));
             case "remove" -> onRemove(event, UUID.fromString(id[1]));
-            case "refresh" -> onRefresh(event, UUID.fromString(id[1]));
             case "authenticate" -> onAuthenticate(event, UUID.fromString(id[1]));
             case "deauthenticate" -> onDeauthenticate(event, UUID.fromString(id[1]));
+            case "refresh" -> onRefresh(event, UUID.fromString(id[1]));
+            case "dashboard-reload" -> onReloadFromDashboard(event, UUID.fromString(id[1]));
+            case "dashboard-save" -> onSaveFromDashboard(event, UUID.fromString(id[1]));
+            case "dashboard-upload" -> onUploadFromDashboard(event, UUID.fromString(id[1]));
         }
     }
 
@@ -155,7 +160,7 @@ public class InteractionListener extends ListenerAdapter {
         switch (id[0]) {
             case "claim" -> onClaim(event, UUID.fromString(id[1]));
             case "authentication" -> onAuthentication(event, UUID.fromString(id[1]));
-            case "reload" -> onReloadSessions(event);
+            case "reload" -> onReload(event);
             case "save" -> onSave(event);
             case "upload" -> onUpload(event);
         }
@@ -173,7 +178,7 @@ public class InteractionListener extends ListenerAdapter {
         if (member != null && member.hasPermission(Permission.MANAGE_SERVER)) {
             return false;
         }
-        callback.reply("You do not have permission to do that!").queue();
+        callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
 
@@ -182,7 +187,7 @@ public class InteractionListener extends ListenerAdapter {
         if (member != null && getGuildManager(callback).hasAdminRole(member)) {
             return false;
         }
-        callback.reply("You do not have permission to do that!").queue();
+        callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
 
@@ -441,10 +446,16 @@ public class InteractionListener extends ListenerAdapter {
         });
     }
 
-    private static StringSelectMenu.Builder serverSelectMenu(String customId, Map<UUID, Server> servers) {
+    private static StringSelectMenu.Builder serverSelectMenu(String customId, Map<UUID, Server> servers, @Nullable Collection<UUID> selectedServerIds) {
         StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
         servers.forEach((id, server) -> builder.addOption(serverDisplayName(server.getName()), id.toString()));
+        if (selectedServerIds != null)
+            builder.setDefaultValues(selectedServerIds.stream().map(UUID::toString).toList());
         return builder;
+    }
+
+    private static StringSelectMenu.Builder serverSelectMenu(String customId, Map<UUID, Server> servers) {
+        return serverSelectMenu(customId, servers, null);
     }
 
     private static ActionRow serverSelectForDetails(GuildManager guildManager) {
@@ -531,15 +542,6 @@ public class InteractionListener extends ListenerAdapter {
         ).useComponentsV2().queue();
 
         event.getHook().sendMessage(event.getUser().getAsMention() + " removed **" + serverDisplayName(server.getName()) + "**").queue();
-    }
-
-    private void onRefresh(ButtonInteractionEvent event, UUID serverId) {
-        // no permission required
-
-        GuildManager guildManager = getGuildManager(event);
-        guildManager.refreshServer(serverId);
-
-        event.deferEdit().queue();
     }
 
     private void onAuthenticate(ButtonInteractionEvent event, UUID serverId) {
@@ -674,6 +676,15 @@ public class InteractionListener extends ListenerAdapter {
         event.reply(event.getUser().getAsMention() + " deleted the authentication token for **" + serverDisplayName(server.getName()) + "**").queue();
     }
 
+    private void onRefresh(ButtonInteractionEvent event, UUID serverId) {
+        // no permission required
+
+        GuildManager guildManager = getGuildManager(event);
+        guildManager.refreshServer(serverId);
+
+        event.deferEdit().queue();
+    }
+
     private void onReloadCommand(SlashCommandInteractionEvent event) {
         if (missingAdminRole(event))
             return;
@@ -693,7 +704,20 @@ public class InteractionListener extends ListenerAdapter {
         ).build()).queue();
     }
 
-    private void onReloadSessions(ModalInteractionEvent event) {
+    private void onReloadFromDashboard(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
+        Server server = getGuildManager(event).getServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
+
+        reload(event, Collections.singletonList(server));
+    }
+
+    private void onReload(ModalInteractionEvent event) {
         if (missingAdminRole(event))
             return;
 
@@ -715,12 +739,16 @@ public class InteractionListener extends ListenerAdapter {
             servers.add(server);
         }
 
+        reload(event, servers);
+    }
+
+    private void reload(IReplyCallback interaction, List<Server> servers) {
         List<String> messageLines = Collections.synchronizedList(servers.stream()
                 .map(server -> "Reloading **" + serverDisplayName(server.getName()) + "**...")
                 .collect(Collectors.toList())
         );
         // No need to synchronize here, the list won't be changing yet
-        event.reply(String.join("\n", messageLines)).queue();
+        interaction.reply(String.join("\n", messageLines)).queue();
 
         for (int i = 0; i < servers.size(); i++) {
             final int index = i;
@@ -741,24 +769,33 @@ public class InteractionListener extends ListenerAdapter {
                     System.err.println(e);
                 }
                 synchronized (messageLines) {
-                    event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+                    interaction.getHook().editOriginal(String.join("\n", messageLines)).queue();
                 }
             });
         }
     }
 
     private void onSaveCommand(SlashCommandInteractionEvent event) {
-        if (missingAdminRole(event))
+        onSaveHelper(event, event, null);
+    }
+
+    private void onSaveFromDashboard(ButtonInteractionEvent event, UUID serverId) {
+        onSaveHelper(event, event, Collections.singleton(serverId));
+    }
+
+    // There's no common interface for IReplyCallback and IModalCallback
+    private void onSaveHelper(IReplyCallback replyCallback, IModalCallback modalCallback, @Nullable Collection<UUID> selectedServerIds) {
+        if (missingAdminRole(replyCallback))
             return;
 
-        Map<UUID, Server> servers = getGuildManager(event).getServers();
+        Map<UUID, Server> servers = getGuildManager(replyCallback).getServers();
         if (servers.isEmpty()) {
-            event.reply("There are no servers that can be saved").setEphemeral(true).queue();
+            replyCallback.reply("There are no servers that can be saved").setEphemeral(true).queue();
             return;
         }
 
-        event.replyModal(Modal.create("save", "Create Save").addComponents(
-                Label.of("Server", serverSelectMenu("server", servers)
+        modalCallback.replyModal(Modal.create("save", "Create Save").addComponents(
+                Label.of("Server", serverSelectMenu("server", servers, selectedServerIds)
                         .setPlaceholder("Select a server")
                         .build()),
                 //TODO: Limit length / check validity?
@@ -831,53 +868,22 @@ public class InteractionListener extends ListenerAdapter {
         });
     }
 
-    private static Modal createUploadModal(Map<UUID, Server> servers, Function<String, LabelChildComponent> saveFileComponentCreator) {
-        return Modal.create("upload", "Upload Save").addComponents(
-                Label.of("Servers", "The server(s) that the save should be uploaded to",
-                        serverSelectMenu("servers", servers)
-                                .setMaxValues(10)
-                                .setPlaceholder("Select one or more servers")
-                                .build()),
-                Label.of("Save File", saveFileComponentCreator.apply("save")),
-                Label.of("Action", "The action to perform with the uploaded save", StringSelectMenu.create("action")
-                        .addOption("Nothing", "nothing", "Just upload the save")
-                        .addOption("Load", "load", "Load the save")
-                        .addOption("Load with Advanced Game Settings", "load-creative", "Load the save with Advanced Game Settings enabled")
-                        .setDefaultValues("nothing")
-                        .build())
-        ).build();
+    private void onUploadCommand(SlashCommandInteractionEvent event) {
+        onUploadHelper(event, event, null, AttachmentUpload::of);
     }
 
-    private void onUploadCommand(SlashCommandInteractionEvent event) {
-        if (missingAdminRole(event))
-            return;
-
-        Map<UUID, Server> servers = getGuildManager(event).getServers();
-        if (servers.isEmpty()) {
-            event.reply("There are no servers that can be uploaded to").setEphemeral(true).queue();
-            return;
-        }
-
-        event.replyModal(createUploadModal(servers, AttachmentUpload::of)).queue();
+    private void onUploadFromDashboard(ButtonInteractionEvent event, UUID serverId) {
+        onUploadHelper(event, event, Collections.singleton(serverId), AttachmentUpload::of);
     }
 
     private void onUploadFromMessage(MessageContextInteractionEvent event) {
-        if (missingAdminRole(event))
-            return;
-
         List<Message.Attachment> attachments = event.getTarget().getAttachments();
         if (attachments.isEmpty()) {
             event.reply("That message does not have any attachments").setEphemeral(true).queue();
             return;
         }
 
-        Map<UUID, Server> servers = getGuildManager(event).getServers();
-        if (servers.isEmpty()) {
-            event.reply("There are no servers that can be uploaded to").setEphemeral(true).queue();
-            return;
-        }
-
-        event.replyModal(createUploadModal(servers, customId -> {
+        onUploadHelper(event, event, null, customId -> {
             StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
             boolean first = true;
             for (Message.Attachment attachment : attachments) {
@@ -889,7 +895,34 @@ public class InteractionListener extends ListenerAdapter {
                 }
             }
             return builder.build();
-        })).queue();
+        });
+    }
+
+    // There's no common interface for IReplyCallback and IModalCallback
+    private void onUploadHelper(IReplyCallback replyCallback, IModalCallback modalCallback, @Nullable Collection<UUID> selectedServerIds, Function<String, LabelChildComponent> saveFileComponentCreator) {
+        if (missingAdminRole(replyCallback))
+            return;
+
+        Map<UUID, Server> servers = getGuildManager(replyCallback).getServers();
+        if (servers.isEmpty()) {
+            replyCallback.reply("There are no servers that can be uploaded to").setEphemeral(true).queue();
+            return;
+        }
+
+        modalCallback.replyModal(Modal.create("upload", "Upload Save").addComponents(
+                Label.of("Servers", "The server(s) that the save should be uploaded to",
+                        serverSelectMenu("servers", servers, selectedServerIds)
+                                .setMaxValues(10)
+                                .setPlaceholder("Select one or more servers")
+                                .build()),
+                Label.of("Save File", saveFileComponentCreator.apply("save")),
+                Label.of("Action", "The action to perform with the uploaded save", StringSelectMenu.create("action")
+                        .addOption("Nothing", "nothing", "Just upload the save")
+                        .addOption("Load", "load", "Load the save")
+                        .addOption("Load with Advanced Game Settings", "load-creative", "Load the save with Advanced Game Settings enabled")
+                        .setDefaultValues("nothing")
+                        .build())
+        ).build()).queue();
     }
 
     private void onUpload(ModalInteractionEvent event) {

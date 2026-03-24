@@ -171,7 +171,10 @@ public class DashboardUpdater implements Closeable {
                 components.add(Separator.createDivider(Separator.Spacing.SMALL));
                 components.add(TextDisplay.of("-# Last updated " + TimeFormat.RELATIVE.now()));
                 components.add(ActionRow.of(
-                        Button.primary("refresh:" + serverId, "Refresh")
+                        Button.success("refresh:" + serverId, "Refresh"),
+                        Button.primary("dashboard-reload:" + serverId, "Reload"),
+                        Button.secondary("dashboard-save:" + serverId, "Download Save"),
+                        Button.secondary("dashboard-upload:" + serverId, "Upload Save")
                 ));
 
                 Container container = Container.of(components).withAccentColor(switch (serverStatus) {

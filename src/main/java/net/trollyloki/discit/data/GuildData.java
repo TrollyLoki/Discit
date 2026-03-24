@@ -12,8 +12,9 @@ public class GuildData {
 
     private final Map<UUID, ServerData> servers = new ConcurrentHashMap<>();
 
-    private @Nullable String dashboardChannelId;
     private @Nullable String adminRoleId;
+    private @Nullable String actionLogChannelId;
+    private @Nullable String dashboardChannelId;
 
     public Map<UUID, ServerData> getServers() {
         return servers;
@@ -25,6 +26,14 @@ public class GuildData {
 
     public void setAdminRoleId(@Nullable String adminRoleId) {
         this.adminRoleId = adminRoleId;
+    }
+
+    public @Nullable String getActionLogChannelId() {
+        return actionLogChannelId;
+    }
+
+    public void setActionLogChannelId(@Nullable String actionLogChannelId) {
+        this.actionLogChannelId = actionLogChannelId;
     }
 
     public @Nullable String getDashboardChannelId() {

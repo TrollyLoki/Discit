@@ -5,7 +5,10 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.trollyloki.discit.data.GuildData;
 import net.trollyloki.discit.data.ServerData;
 import org.jspecify.annotations.NullMarked;
@@ -79,10 +82,16 @@ public class GuildManager {
         return getGuild().getRoleById(roleId);
     }
 
-    public @Nullable TextChannel getDashboardChannel() {
+    public @Nullable GuildMessageChannel getActionLogChannel() {
+        String channelId = data.getActionLogChannelId();
+        if (channelId == null) return null;
+        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
+    }
+
+    public @Nullable GuildMessageChannel getDashboardChannel() {
         String channelId = data.getDashboardChannelId();
         if (channelId == null) return null;
-        return getGuild().getTextChannelById(channelId);
+        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
     public void setAdminRole(@Nullable String roleId) {
@@ -90,9 +99,24 @@ public class GuildManager {
         save();
     }
 
+    public void setActionLogChannel(@Nullable String channelId) {
+        data.setActionLogChannelId(channelId);
+        save();
+    }
+
     public void setDashboardChannel(@Nullable String channelId) {
         data.setDashboardChannelId(channelId);
         save();
+    }
+
+    public void logAction(User user, String action) {
+        GuildMessageChannel channel = getActionLogChannel();
+        if (channel == null) return;
+        channel.sendMessage(user.getAsMention() + " " + action).setAllowedMentions(Collections.emptySet()).queue();
+    }
+
+    public boolean isDashboard(@Nullable Channel channel) {
+        return channel != null && channel.getId().equals(data.getDashboardChannelId());
     }
 
     public Map<UUID, Server> getServers() {

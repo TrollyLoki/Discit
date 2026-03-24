@@ -18,7 +18,7 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -123,8 +123,9 @@ public class InteractionListener extends ListenerAdapter {
     public void onEntitySelectInteraction(EntitySelectInteractionEvent event) {
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
-            case "dashboard-channel" -> onSelectDashboardChannel(event);
             case "admin-role" -> onSelectAdminRole(event);
+            case "action-log-channel" -> onSelectActionLogChannel(event);
+            case "dashboard-channel" -> onSelectDashboardChannel(event);
         }
     }
 
@@ -191,19 +192,13 @@ public class InteractionListener extends ListenerAdapter {
         return true;
     }
 
+    private static final List<ChannelType> GUILD_MESSAGE_CHANNEL_TYPES = ChannelType.guildTypes().stream().filter(ChannelType::isMessage).toList();
+
     private void onSettings(SlashCommandInteractionEvent event) {
         if (cannotManageGuild(event))
             return;
 
         GuildManager guildManager = getGuildManager(event);
-
-        EntitySelectMenu.Builder dashboardChannelSelect = EntitySelectMenu
-                .create("dashboard-channel", EntitySelectMenu.SelectTarget.CHANNEL)
-                .setChannelTypes(ChannelType.TEXT);
-        TextChannel currentDashboardChannel = guildManager.getDashboardChannel();
-        if (currentDashboardChannel != null) {
-            dashboardChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentDashboardChannel));
-        }
 
         EntitySelectMenu.Builder adminRoleSelect = EntitySelectMenu
                 .create("admin-role", EntitySelectMenu.SelectTarget.ROLE);
@@ -212,34 +207,43 @@ public class InteractionListener extends ListenerAdapter {
             adminRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentAdminRole));
         }
 
+        EntitySelectMenu.Builder actionLogChannelSelect = EntitySelectMenu
+                .create("action-log-channel", EntitySelectMenu.SelectTarget.CHANNEL)
+                .setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
+        GuildMessageChannel currentActionLogChannel = guildManager.getActionLogChannel();
+        if (currentActionLogChannel != null) {
+            actionLogChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentActionLogChannel));
+        }
+
+        EntitySelectMenu.Builder dashboardChannelSelect = EntitySelectMenu
+                .create("dashboard-channel", EntitySelectMenu.SelectTarget.CHANNEL)
+                .setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
+        GuildMessageChannel currentDashboardChannel = guildManager.getDashboardChannel();
+        if (currentDashboardChannel != null) {
+            dashboardChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentDashboardChannel));
+        }
+
         String title = "## Settings";
         if (event.getGuild() != null) {
             title += " for " + event.getGuild().getName();
         }
         event.replyComponents(TextDisplay.of(title),
                 Container.of(
-                        TextDisplay.of("### Dashboard Channel"),
-                        TextDisplay.of("Live server statuses will be displayed in this channel"),
-                        ActionRow.of(dashboardChannelSelect.setPlaceholder("Select a text channel").build())
-                ),
-                Container.of(
                         TextDisplay.of("### Administrator Role"),
                         TextDisplay.of("Users with this role will have full administrator access to **all added servers**"),
                         ActionRow.of(adminRoleSelect.setPlaceholder("Select a role").build())
+                ),
+                Container.of(
+                        TextDisplay.of("### Action Log Channel"),
+                        TextDisplay.of("A message will be sent to this channel each time an action that requires administrator access is performed"),
+                        ActionRow.of(actionLogChannelSelect.setPlaceholder("Select a text channel").build())
+                ),
+                Container.of(
+                        TextDisplay.of("### Dashboard Channel"),
+                        TextDisplay.of("Live server statuses will be displayed in this channel"),
+                        ActionRow.of(dashboardChannelSelect.setPlaceholder("Select a text channel").build())
                 )
         ).useComponentsV2().setEphemeral(true).queue();
-    }
-
-    private void onSelectDashboardChannel(EntitySelectInteractionEvent event) {
-        if (cannotManageGuild(event))
-            return;
-
-        IMentionable selection = event.getValues().get(0);
-
-        GuildManager guildManager = getGuildManager(event);
-        guildManager.setDashboardChannel(selection.getId());
-
-        event.reply(event.getUser().getAsMention() + " set the dashboard channel to " + selection.getAsMention()).queue();
     }
 
     private void onSelectAdminRole(EntitySelectInteractionEvent event) {
@@ -251,8 +255,35 @@ public class InteractionListener extends ListenerAdapter {
         GuildManager guildManager = getGuildManager(event);
         guildManager.setAdminRole(selection.getId());
 
-        event.reply(event.getUser().getAsMention() + " set the administrator role to " + selection.getAsMention())
-                .setAllowedMentions(Collections.singleton(Message.MentionType.USER)).queue();
+        event.reply("Administrator role set to " + selection.getAsMention())
+                .setAllowedMentions(Collections.emptySet()).setEphemeral(true).queue();
+        guildManager.logAction(event.getUser(), "set the administrator role to " + selection.getAsMention());
+    }
+
+    private void onSelectActionLogChannel(EntitySelectInteractionEvent event) {
+        if (cannotManageGuild(event))
+            return;
+
+        IMentionable selection = event.getValues().get(0);
+
+        GuildManager guildManager = getGuildManager(event);
+        guildManager.setActionLogChannel(selection.getId());
+
+        event.reply("Action log channel set to " + selection.getAsMention()).setEphemeral(true).queue();
+        guildManager.logAction(event.getUser(), "set the action log channel to " + selection.getAsMention());
+    }
+
+    private void onSelectDashboardChannel(EntitySelectInteractionEvent event) {
+        if (cannotManageGuild(event))
+            return;
+
+        IMentionable selection = event.getValues().get(0);
+
+        GuildManager guildManager = getGuildManager(event);
+        guildManager.setDashboardChannel(selection.getId());
+
+        event.reply("Dashboard channel set to " + selection.getAsMention()).setEphemeral(true).queue();
+        guildManager.logAction(event.getUser(), "set the dashboard channel to " + selection.getAsMention());
     }
 
     private void onCancel(ButtonInteractionEvent event) {
@@ -334,30 +365,28 @@ public class InteractionListener extends ListenerAdapter {
             return;
         }
 
-        event.deferEdit().queue();
-        event.getHook().deleteOriginal().queue();
-
         String name;
         try (QueryApi queryApi = server.queryApi(Duration.ofSeconds(3))) {
             name = "**" + serverDisplayName(queryApi.pollServerState().name()) + "**";
         } catch (Exception e) {
             name = "a server";
         }
-        event.getHook().sendMessage(event.getUser().getAsMention() + " added " + name).queue();
+        event.editComponents(TextDisplay.of("Added " + name)).useComponentsV2().queue();
+        guildManager.logAction(event.getUser(), "added " + name);
 
         // Check if the server is unclaimed
         CompletableFuture.runAsync(() -> {
             try {
                 server.httpsApi(Duration.ofSeconds(3)).passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
 
-                event.getHook().sendMessageComponents(
+                event.getHook().editOriginalComponents(
                         TextDisplay.of("The server you just added is currently unclaimed"),
                         TextDisplay.of("Would you like to claim it now?"),
                         ActionRow.of(
                                 Button.success("claim:" + serverId, "Yes"),
                                 Button.danger("cancel", "No")
                         )
-                ).useComponentsV2().setEphemeral(true).queue();
+                ).useComponentsV2().queue();
             } catch (Exception e) {
                 // Could not log in as initial admin so the server must be claimed already
                 if (!(e instanceof PasswordlessLoginNotPossibleException)) {
@@ -428,8 +457,9 @@ public class InteractionListener extends ListenerAdapter {
                 httpsApi.passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
                 httpsApi.claimServer(name.getAsString(), password1.getAsString());
 
-                event.getHook().deleteOriginal().queue();
-                event.getHook().sendMessage(event.getUser().getAsMention() + " successfully claimed **" + serverDisplayName(name.getAsString()) + "**").queue();
+                event.getHook().editOriginalComponents(TextDisplay.of("Successfully claimed the server"))
+                        .useComponentsV2().queue();
+                guildManager.logAction(event.getUser(), "claimed **" + serverDisplayName(name.getAsString()) + "**");
             } catch (ApiException e) {
                 event.getHook().editOriginalComponents(TextDisplay.of("Unable to claim the server: " + e.getMessage()))
                         .useComponentsV2().queue();
@@ -540,8 +570,7 @@ public class InteractionListener extends ListenerAdapter {
                 TextDisplay.of("Server removed"),
                 serverSelectForDetails(guildManager)
         ).useComponentsV2().queue();
-
-        event.getHook().sendMessage(event.getUser().getAsMention() + " removed **" + serverDisplayName(server.getName()) + "**").queue();
+        guildManager.logAction(event.getUser(), "removed **" + serverDisplayName(server.getName()) + "**");
     }
 
     private void onAuthenticate(ButtonInteractionEvent event, UUID serverId) {
@@ -657,7 +686,8 @@ public class InteractionListener extends ListenerAdapter {
         guildManager.setServerToken(serverId, token);
 
         serverName = serverName != null ? serverName : server.getName();
-        event.getHook().sendMessage(event.getUser().getAsMention() + " added an authentication token for **" + serverDisplayName(serverName) + "**").queue();
+        event.getHook().sendMessage("Authentication successful").setEphemeral(true).queue();
+        guildManager.logAction(event.getUser(), "added an authentication token for **" + serverDisplayName(serverName) + "**");
     }
 
     private void onDeauthenticate(ButtonInteractionEvent event, UUID serverId) {
@@ -673,7 +703,8 @@ public class InteractionListener extends ListenerAdapter {
 
         guildManager.setServerToken(serverId, null);
 
-        event.reply(event.getUser().getAsMention() + " deleted the authentication token for **" + serverDisplayName(server.getName()) + "**").queue();
+        event.reply("Authentication removed").setEphemeral(true).queue();
+        guildManager.logAction(event.getUser(), "removed the authentication token for **" + serverDisplayName(server.getName()) + "**");
     }
 
     private void onRefresh(ButtonInteractionEvent event, UUID serverId) {
@@ -708,13 +739,14 @@ public class InteractionListener extends ListenerAdapter {
         if (missingAdminRole(event))
             return;
 
-        Server server = getGuildManager(event).getServer(serverId);
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
         if (server == null) {
             event.reply("Unknown server").setEphemeral(true).queue();
             return;
         }
 
-        reload(event, Collections.singletonList(server));
+        reload(event, guildManager, Collections.singletonList(server));
     }
 
     private void onReload(ModalInteractionEvent event) {
@@ -739,16 +771,18 @@ public class InteractionListener extends ListenerAdapter {
             servers.add(server);
         }
 
-        reload(event, servers);
+        reload(event, guildManager, servers);
     }
 
-    private void reload(IReplyCallback interaction, List<Server> servers) {
+    private void reload(IReplyCallback interaction, GuildManager guildManager, List<Server> servers) {
         List<String> messageLines = Collections.synchronizedList(servers.stream()
                 .map(server -> "Reloading **" + serverDisplayName(server.getName()) + "**...")
                 .collect(Collectors.toList())
         );
         // No need to synchronize here, the list won't be changing yet
-        interaction.reply(String.join("\n", messageLines)).queue();
+        interaction.reply(String.join("\n", messageLines))
+                .setEphemeral(guildManager.isDashboard(interaction.getChannel()))
+                .queue();
 
         for (int i = 0; i < servers.size(); i++) {
             final int index = i;
@@ -762,6 +796,7 @@ public class InteractionListener extends ListenerAdapter {
                     httpsApi.loadSave("reload_continue", false);
 
                     messageLines.set(index, "Successfully reloaded **" + serverDisplayName(server.getName()) + "**");
+                    guildManager.logAction(interaction.getUser(), "reloaded **" + serverDisplayName(server.getName()) + "**");
                 } catch (ApiException e) {
                     messageLines.set(index, "Unable to reload **" + serverDisplayName(server.getName()) + "**: " + e.getMessage());
                 } catch (Exception e) {
@@ -817,7 +852,9 @@ public class InteractionListener extends ListenerAdapter {
         }
 
         UUID serverId = UUID.fromString(serverIds.getAsStringList().get(0));
-        Server server = getGuildManager(event).getServer(serverId);
+
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
         if (server == null) {
             event.reply("Unknown server").setEphemeral(true).queue();
             return;
@@ -828,7 +865,7 @@ public class InteractionListener extends ListenerAdapter {
 
         HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
 
-        event.deferReply().queue();
+        event.deferReply(guildManager.isDashboard(event.getChannel())).queue();
         CompletableFuture.runAsync(() -> {
             boolean saved = false;
             try {
@@ -858,7 +895,7 @@ public class InteractionListener extends ListenerAdapter {
 
                 event.getHook().editOriginal((sessionName != null ? sessionName + " on " : "") + "**" + serverDisplayName(server.getName()) + "** at " + TimeFormat.DEFAULT.atInstant(timestamp))
                         .setFiles(FileUpload.fromData(httpsApi.downloadSave(actualSaveName), actualSaveName + SaveFileReader.EXTENSION))
-                        .queue();
+                        .queue(message -> guildManager.logAction(event.getUser(), "downloaded " + message.getAttachments().get(0).getUrl() + " from **" + serverDisplayName(server.getName()) + "**"));
             } catch (ApiException e) {
                 event.getHook().editOriginal((saved ? "Unable to download save from " : "Unable to save ") + "**" + serverDisplayName(server.getName()) + "**: " + e.getMessage()).queue();
             } catch (Exception e) {
@@ -986,7 +1023,7 @@ public class InteractionListener extends ListenerAdapter {
         String file = saveFileAttachment.getUrl();
         String name = SaveFileReader.saveNameOf(saveFileAttachment.getFileName());
 
-        event.deferReply().queue();
+        event.deferReply(guildManager.isDashboard(event.getChannel())).queue();
         saveFileAttachment.getProxy().download().whenComplete((stream, error) -> {
             if (stream == null) {
                 event.getHook().editOriginal("Failed to retrieve file").queue();
@@ -1047,6 +1084,7 @@ public class InteractionListener extends ListenerAdapter {
                             httpsApi.uploadSave(uploadStream, name, load, loadCreative);
 
                             messageLines.set(index, "Successfully uploaded " + file + " to **" + serverDisplayName(server.getName()) + "**");
+                            guildManager.logAction(event.getUser(), "uploaded " + file + " to **" + serverDisplayName(server.getName()) + "**");
                         } catch (ApiException e) {
                             messageLines.set(index, "Unable to upload " + file + " to **" + serverDisplayName(server.getName()) + "**: " + e.getMessage());
                         } catch (Exception e) {

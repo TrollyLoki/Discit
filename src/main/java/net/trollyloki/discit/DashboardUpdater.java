@@ -7,7 +7,7 @@ import net.dv8tion.jda.api.components.container.ContainerChildComponent;
 import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
@@ -103,7 +103,7 @@ public class DashboardUpdater implements Closeable {
     private void update() {
         try {
 
-            TextChannel channel = guildManager.getDashboardChannel();
+            GuildMessageChannel channel = guildManager.getDashboardChannel();
             if (channel == null) {
                 throw new IllegalStateException("Cannot access dashboard channel");
             }

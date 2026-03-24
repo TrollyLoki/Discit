@@ -42,6 +42,10 @@ import static net.trollyloki.discit.Utils.serverDisplayName;
 @NullMarked
 public class DashboardUpdater implements Closeable {
 
+    private static final Duration
+            QUERY_TIMEOUT = Duration.ofSeconds(5),
+            API_TIMEOUT = Duration.ofSeconds(3);
+
     private static final Color
             RED = Color.getHSBColor(.000f, .75f, 1.00f),
             YELLOW = Color.getHSBColor(.125f, .75f, 1.00f),
@@ -80,24 +84,35 @@ public class DashboardUpdater implements Closeable {
         }
     }
 
-    @Override
-    public void close() {
-        if (queryApi != null) {
-            queryApi.close();
-        }
-        executor.shutdownNow();
-    }
-
     private @Nullable ServerStatus previousServerStatus;
     private short previousGameStateVersion;
     private @Nullable String previousName;
 
     private @Nullable ServerGameState cachedGameState;
 
+    private @Nullable String messageId;
     private boolean update = false;
 
     public void update() {
         update = true;
+    }
+
+    @Override
+    public void close() {
+        if (queryApi != null) {
+            queryApi.close();
+        }
+
+        executor.execute(() -> {
+            GuildMessageChannel channel = guildManager.getDashboardChannel();
+            if (channel == null) return;
+
+            if (messageId == null) return;
+
+            channel.deleteMessageById(messageId).queue();
+        });
+
+        executor.shutdown();
     }
 
     private void run() {
@@ -112,7 +127,7 @@ public class DashboardUpdater implements Closeable {
             short gameStateVersion;
             String name;
             try {
-                if (queryApi == null) queryApi = server.queryApi(Duration.ofSeconds(5));
+                if (queryApi == null) queryApi = server.queryApi(QUERY_TIMEOUT);
                 ServerState serverState = queryApi.pollServerState();
 
                 // Update name if it changed
@@ -136,7 +151,7 @@ public class DashboardUpdater implements Closeable {
                 System.out.println("QUERYING HTTPS API for version " + gameStateVersion);
                 cachedGameState = null;
                 try {
-                    HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(5));
+                    HttpsApi httpsApi = server.httpsApi(API_TIMEOUT);
                     if (httpsApi.getPrivilegeLevel() == PrivilegeLevel.NOT_AUTHENTICATED) {
                         httpsApi.passwordlessLogin(PrivilegeLevel.CLIENT);
                     }
@@ -183,11 +198,13 @@ public class DashboardUpdater implements Closeable {
                     case PLAYING -> GREEN;
                 });
 
+                if (messageId == null) messageId = guildManager.getDashboardMessageId(serverId);
+
                 Message message = null;
-                if (guildManager.getDashboardMessageId(serverId) != null) {
+                if (messageId != null) {
                     try {
                         // try to edit existing message
-                        message = channel.editMessageComponentsById(guildManager.getDashboardMessageId(serverId), container)
+                        message = channel.editMessageComponentsById(messageId, container)
                                 .useComponentsV2().complete();
                     } catch (ErrorResponseException e) {
                         if (e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE)
@@ -198,7 +215,9 @@ public class DashboardUpdater implements Closeable {
                     // send a new message
                     message = channel.sendMessageComponents(container)
                             .useComponentsV2().complete();
-                    guildManager.setDashboardMessageId(serverId, message.getId());
+
+                    messageId = message.getId();
+                    guildManager.setDashboardMessageId(serverId, messageId);
                 }
 
                 previousServerStatus = serverStatus;

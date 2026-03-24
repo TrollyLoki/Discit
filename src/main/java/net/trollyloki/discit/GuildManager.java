@@ -7,7 +7,6 @@ import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.trollyloki.discit.data.GuildData;
 import net.trollyloki.discit.data.ServerData;
@@ -158,14 +157,6 @@ public class GuildManager {
 
         try (DashboardUpdater updater = updaters.remove(serverId)) {
             updater.stop();
-        }
-
-        // Delete dashboard message
-        if (data.getDashboardChannelId() != null && serverData.getDashboardMessageId() != null) {
-            TextChannel channel = jda.getTextChannelById(data.getDashboardChannelId());
-            if (channel != null) {
-                channel.deleteMessageById(serverData.getDashboardMessageId()).queue();
-            }
         }
 
         return serverData;

@@ -191,6 +191,11 @@ public class DashboardUpdater implements Closeable {
                         Button.secondary("dashboard-save:" + serverId, "Download Save"),
                         Button.secondary("dashboard-upload:" + serverId, "Upload Save")
                 ));
+                components.add(ActionRow.of(
+                        Button.secondary("dashboard-rename:" + serverId, "Rename Server"),
+                        Button.secondary("dashboard-settings:" + serverId, "Server Settings"),
+                        Button.secondary("dashboard-ags:" + serverId, "Advanced Game Settings")
+                ));
 
                 Container container = Container.of(components).withAccentColor(switch (serverStatus) {
                     case OFFLINE -> RED;

@@ -154,6 +154,9 @@ public class InteractionListener extends ListenerAdapter {
             case "dashboard-reload" -> onReloadFromDashboard(event, UUID.fromString(id[1]));
             case "dashboard-save" -> onSaveFromDashboard(event, UUID.fromString(id[1]));
             case "dashboard-upload" -> onUploadFromDashboard(event, UUID.fromString(id[1]));
+            case "dashboard-rename" -> onRenameFromDashboard(event, UUID.fromString(id[1]));
+            case "dashboard-settings" -> onSettingsFromDashboard(event, UUID.fromString(id[1]));
+            case "dashboard-ags" -> onAdvancedGameSettingsFromDashboard(event, UUID.fromString(id[1]));
         }
     }
 
@@ -174,6 +177,7 @@ public class InteractionListener extends ListenerAdapter {
             case "reload" -> onReload(event);
             case "save" -> onSave(event, id.length > 1 ? UUID.fromString(id[1]) : null);
             case "upload" -> onUpload(event, id.length > 1 ? UUID.fromString(id[1]) : null);
+            case "rename-server" -> onRenameServer(event, UUID.fromString(id[1]));
         }
     }
 
@@ -1133,6 +1137,91 @@ public class InteractionListener extends ListenerAdapter {
                 e.printStackTrace();
             }
         });
+    }
+
+    private void onRenameFromDashboard(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
+
+        event.replyModal(Modal.create("rename-server:" + serverId, "Rename Server").addComponents(
+                Label.of("Server Name",
+                        TextInput.create("name", TextInputStyle.SHORT).setValue(server.getName()).build()
+                )
+        ).build()).queue();
+    }
+
+    private void onRenameServer(ModalInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
+
+        ModalMapping name = event.getValue("name");
+        if (name == null) {
+            event.reply("Please provide a name").setEphemeral(true).queue();
+            return;
+        }
+
+        HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
+        String originalName = server.getName();
+        String newName = name.getAsString();
+
+        event.deferReply(guildManager.isDashboard(event.getChannel())).queue();
+        CompletableFuture.runAsync(() -> {
+            try {
+                httpsApi.renameServer(newName);
+
+                event.getHook().editOriginal("Successfully renamed **" + serverDisplayName(newName) + "**").queue();
+                guildManager.logAction(event.getUser(), "renamed **" + serverDisplayName(originalName) + "** to **" + serverDisplayName(newName) + "**");
+            } catch (ApiException e) {
+                event.getHook().editOriginal("Unable to rename **" + serverDisplayName(server.getName()) + "**: " + e.getMessage()).queue();
+            } catch (Exception e) {
+                event.getHook().editOriginal("Failed to rename **" + serverDisplayName(server.getName()) + "**").queue();
+                System.err.println(e);
+            }
+        });
+    }
+
+    private void onSettingsFromDashboard(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
+
+        //TODO: Need checkbox support
+        event.reply("Not yet implemented").setEphemeral(true).queue();
+    }
+
+    private void onAdvancedGameSettingsFromDashboard(ButtonInteractionEvent event, UUID serverId) {
+        if (missingAdminRole(event))
+            return;
+
+        GuildManager guildManager = getGuildManager(event);
+        Server server = guildManager.getServer(serverId);
+        if (server == null) {
+            event.reply("Unknown server").setEphemeral(true).queue();
+            return;
+        }
+
+        //TODO: Need checkbox support
+        event.reply("Not yet implemented").setEphemeral(true).queue();
     }
 
     private void onBackupCommand(SlashCommandInteractionEvent event) {

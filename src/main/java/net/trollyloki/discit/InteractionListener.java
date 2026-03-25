@@ -1206,21 +1206,24 @@ public class InteractionListener extends ListenerAdapter {
 
         // Download and zip save files
         CompletableFuture.allOf(futures).thenRunAsync(() -> {
+            List<String> finalMessageLines = new ArrayList<>(futures.length);
+            List<Save> saves = new ArrayList<>(futures.length);
+            for (int i = 0; i < futures.length; i++) {
+                Save save = futures[i].join();
+                if (save == null) continue;
+
+                saves.add(save);
+                finalMessageLines.add((save.sessionName != null ? save.sessionName + " on " : "") + "**" + serverDisplayName(servers.get(i).getName()) + "** at " + TimeFormat.DEFAULT.atInstant(save.timestamp));
+            }
+
+            String serversString = saves.size() + " server" + (saves.size() == 1 ? "" : "s");
+            messageLines.add("Downloading save files from " + serversString + "...");
+            synchronized (messageLines) {
+                event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+            }
+
             PipedInputStream uploadStream = new PipedInputStream();
             try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
-
-                List<String> finalMessageLines = new ArrayList<>(futures.length);
-                List<Save> saves = new ArrayList<>(futures.length);
-                for (int i = 0; i < futures.length; i++) {
-                    Save save = futures[i].join();
-                    if (save == null) continue;
-
-                    saves.add(save);
-                    finalMessageLines.add((save.sessionName != null ? save.sessionName + " on " : "") + "**" + serverDisplayName(servers.get(i).getName()) + "** at " + TimeFormat.DEFAULT.atInstant(save.timestamp));
-                }
-
-                String serversString = saves.size() + " server" + (saves.size() == 1 ? "" : "s");
-                event.getHook().editOriginal("Downloading save files from " + serversString + "...").queue();
                 event.getHook().editOriginal(String.join("\n", finalMessageLines))
                         .setFiles(FileUpload.fromData(uploadStream, name + ".zip"))
                         .queue(message -> guildManager.logAction(event.getUser(), "backed up " + serversString + " to " + message.getAttachments().get(0).getUrl()));

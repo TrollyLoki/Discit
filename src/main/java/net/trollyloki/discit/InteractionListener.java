@@ -471,9 +471,10 @@ public class InteractionListener extends ListenerAdapter {
                 httpsApi.passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
                 httpsApi.claimServer(name.getAsString(), password1.getAsString());
 
-                event.getHook().editOriginalComponents(TextDisplay.of("Successfully claimed the server"))
+                String result = "claimed **" + serverDisplayName(name.getAsString()) + "**";
+                event.getHook().editOriginalComponents(TextDisplay.of("Successfully " + result))
                         .useComponentsV2().queue();
-                guildManager.logAction(event.getUser(), "claimed **" + serverDisplayName(name.getAsString()) + "**");
+                guildManager.logAction(event.getUser(), result);
             } catch (ApiException e) {
                 event.getHook().editOriginalComponents(TextDisplay.of("Unable to claim the server: " + e.getMessage()))
                         .useComponentsV2().queue();
@@ -575,7 +576,7 @@ public class InteractionListener extends ListenerAdapter {
         }
 
         event.editComponents(
-                TextDisplay.of("Server removed"),
+                TextDisplay.of("Removed **" + serverDisplayName(server.getName()) + "**"),
                 serverSelectForDetails(guildManager)
         ).useComponentsV2().queue();
         guildManager.logAction(event.getUser(), "removed **" + serverDisplayName(server.getName()) + "**");

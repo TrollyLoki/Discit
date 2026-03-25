@@ -1119,8 +1119,9 @@ public class InteractionListener extends ListenerAdapter {
 
                             httpsApi.uploadSave(uploadStream, name, load, loadCreative);
 
-                            messageLines.set(index, "Successfully uploaded " + file + " to **" + serverDisplayName(server.getName()) + "**");
-                            guildManager.logAction(event.getUser(), "uploaded " + file + " to **" + serverDisplayName(server.getName()) + "**");
+                            String result = load ? "loaded " + file + " on" : "uploaded " + file + " to";
+                            messageLines.set(index, "Successfully " + result + " **" + serverDisplayName(server.getName()) + "**");
+                            guildManager.logAction(event.getUser(), result + " **" + serverDisplayName(server.getName()) + "**");
                         } catch (ApiException e) {
                             messageLines.set(index, "Unable to upload " + file + " to **" + serverDisplayName(server.getName()) + "**: " + e.getMessage());
                         } catch (Exception e) {

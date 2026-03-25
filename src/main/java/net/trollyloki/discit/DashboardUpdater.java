@@ -202,7 +202,10 @@ public class DashboardUpdater implements Closeable {
                             Button.secondary("dashboard-ags:" + serverId, "Advanced Game Settings")
                     ));
                 } else {
-                    components.add(ActionRow.of(updateButton));
+                    components.add(ActionRow.of(
+                            updateButton,
+                            Button.primary("authenticate:" + serverId, "Authenticate")
+                    ));
                 }
 
                 Container container = Container.of(components).withAccentColor(switch (serverStatus) {

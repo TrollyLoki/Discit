@@ -145,7 +145,7 @@ public class DashboardUpdater implements Closeable {
             }
 
             //TODO: Always retrying if we don't have an up-to-date cached game state can lead to HTTPS spam
-            boolean queryHttps = serverStatus.isHttpsApiAvailable() && (cachedGameState == null || gameStateVersion != previousGameStateVersion);
+            boolean queryHttps = serverStatus.isHttpsApiAvailable() && (update || cachedGameState == null || gameStateVersion != previousGameStateVersion);
             String errorMessage = null;
             if (queryHttps) {
                 System.out.println("QUERYING HTTPS API for version " + gameStateVersion);

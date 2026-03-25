@@ -986,7 +986,7 @@ public class InteractionListener extends ListenerAdapter {
                         .addOption("Nothing", "nothing", "Just upload the save")
                         .addOption("Load", "load", "Load the save")
                         .addOption("Load with Advanced Game Settings", "load-creative", "Load the save with Advanced Game Settings enabled")
-                        .setDefaultValues("nothing")
+                .setDefaultValues("load")
                 .build()));
 
         modalCallback.replyModal(Modal.create(customId, "Upload Save").addComponents(components).build()).queue();

@@ -87,6 +87,7 @@ public class DashboardUpdater implements Closeable {
     private @Nullable ServerStatus previousServerStatus;
     private short previousGameStateVersion;
     private @Nullable String previousName;
+    private boolean previouslyHadToken;
 
     private @Nullable ServerGameState cachedGameState;
 
@@ -164,7 +165,8 @@ public class DashboardUpdater implements Closeable {
                 }
             }
 
-            if (update || serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName)) {
+            boolean hasToken = server.hasToken();
+            if (update || serverStatus != previousServerStatus || queryHttps || !Objects.equals(name, previousName) || hasToken != previouslyHadToken) {
                 System.out.println("UPDATING DASHBOARD MESSAGE");
                 List<ContainerChildComponent> components = new ArrayList<>();
 
@@ -185,17 +187,23 @@ public class DashboardUpdater implements Closeable {
 
                 components.add(Separator.createDivider(Separator.Spacing.SMALL));
                 components.add(TextDisplay.of("-# Last updated " + TimeFormat.RELATIVE.now()));
-                components.add(ActionRow.of(
-                        Button.success("dashboard-update:" + serverId, "Update"),
-                        Button.primary("dashboard-reload:" + serverId, "Reload Session"),
-                        Button.secondary("dashboard-save:" + serverId, "Download Save"),
-                        Button.secondary("dashboard-upload:" + serverId, "Upload Save")
-                ));
-                components.add(ActionRow.of(
-                        Button.secondary("dashboard-rename:" + serverId, "Rename Server"),
-                        Button.secondary("dashboard-settings:" + serverId, "Server Settings"),
-                        Button.secondary("dashboard-ags:" + serverId, "Advanced Game Settings")
-                ));
+
+                Button updateButton = Button.success("dashboard-update:" + serverId, "Update");
+                if (hasToken) {
+                    components.add(ActionRow.of(
+                            updateButton,
+                            Button.primary("dashboard-reload:" + serverId, "Reload Session"),
+                            Button.secondary("dashboard-save:" + serverId, "Download Save"),
+                            Button.secondary("dashboard-upload:" + serverId, "Upload Save")
+                    ));
+                    components.add(ActionRow.of(
+                            Button.secondary("dashboard-rename:" + serverId, "Rename Server"),
+                            Button.secondary("dashboard-settings:" + serverId, "Server Settings"),
+                            Button.secondary("dashboard-ags:" + serverId, "Advanced Game Settings")
+                    ));
+                } else {
+                    components.add(ActionRow.of(updateButton));
+                }
 
                 Container container = Container.of(components).withAccentColor(switch (serverStatus) {
                     case OFFLINE -> RED;
@@ -228,6 +236,7 @@ public class DashboardUpdater implements Closeable {
                 previousServerStatus = serverStatus;
                 previousGameStateVersion = gameStateVersion;
                 previousName = name;
+                previouslyHadToken = hasToken;
 
                 update = false;
             }

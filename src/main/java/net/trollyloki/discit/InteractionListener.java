@@ -73,6 +73,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static net.trollyloki.discit.Utils.defaultSaveName;
 import static net.trollyloki.discit.Utils.serverDisplayName;
@@ -92,17 +94,18 @@ public class InteractionListener extends ListenerAdapter {
         discit.getJDA().updateCommands().addCommands(
                 Commands.slash("settings", "Change settings"),
                 Commands.slash("add", "Add a server").addOptions(
-                        new OptionData(OptionType.STRING, "host", "Server host address")
-                                .setRequired(true),
-                        new OptionData(OptionType.INTEGER, "port", "Server port")
-                                .setRequired(true)
+                        new OptionData(OptionType.STRING, "host", "Server host address", true),
+                        new OptionData(OptionType.INTEGER, "port", "Server port", true)
                                 .setRequiredRange(0, 65535)
                 ),
                 Commands.slash("list", "List added servers"),
                 Commands.slash("reload", "Save and reload the active session on one or more servers"),
                 Commands.slash("save", "Create and download a save from a server"),
                 Commands.slash("upload", "Upload a save file to one or more servers"),
-                Commands.message("Upload save file")
+                Commands.message("Upload save file"),
+                Commands.slash("backup", "Create and download a save from each server").addOptions(
+                        new OptionData(OptionType.STRING, "name", "Backup file name", true)
+                )
         ).queue();
     }
 
@@ -115,6 +118,7 @@ public class InteractionListener extends ListenerAdapter {
             case "reload" -> onReloadCommand(event);
             case "save" -> onSaveCommand(event);
             case "upload" -> onUploadCommand(event);
+            case "backup" -> onBackupCommand(event);
         }
     }
 
@@ -1126,6 +1130,111 @@ public class InteractionListener extends ListenerAdapter {
                 }
             } catch (Exception e) {
                 event.getHook().editOriginal("Failed to start data transfer").queue();
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void onBackupCommand(SlashCommandInteractionEvent event) {
+        if (missingAdminRole(event))
+            return;
+
+        String name = event.getOption("name", OptionMapping::getAsString);
+        if (name == null) {
+            event.reply("Please provide a name for the backup").setEphemeral(true).queue();
+            return;
+        }
+
+        GuildManager guildManager = getGuildManager(event);
+        List<Server> servers = new ArrayList<>(guildManager.getServers().values());
+
+        List<String> messageLines = Collections.synchronizedList(servers.stream()
+                .map(server -> "Saving **" + serverDisplayName(server.getName()) + "**...")
+                .collect(Collectors.toList())
+        );
+        // No need to synchronize here, the list won't be changing yet
+        event.reply(String.join("\n", messageLines))
+                .setEphemeral(guildManager.isDashboard(event.getChannel()))
+                .queue();
+
+        record Save(String name, HttpsApi httpsApi, @Nullable String sessionName, Instant timestamp) {
+        }
+
+        // Save all servers
+        @SuppressWarnings("unchecked") CompletableFuture<@Nullable Save>[] futures = new CompletableFuture[servers.size()];
+        for (int i = 0; i < servers.size(); i++) {
+            final int index = i;
+            Server server = servers.get(index);
+
+            HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
+
+            futures[index] = CompletableFuture.supplyAsync(() -> {
+                try {
+                    String actualSaveName = server.getName() + "_" + name;
+
+                    httpsApi.save(actualSaveName);
+
+                    String sessionName = null;
+                    Instant timestamp = Instant.now();
+
+                    Session session = httpsApi.enumerateSessions().current();
+                    if (session != null) {
+                        sessionName = session.sessionName();
+                        for (SaveHeader header : session.saveHeaders()) {
+                            if (header.saveName().equals(actualSaveName)) {
+                                timestamp = header.saveTimestamp();
+                                break;
+                            }
+                        }
+                    }
+
+                    messageLines.set(index, "Saved **" + serverDisplayName(server.getName()) + "**");
+                    return new Save(actualSaveName, httpsApi, sessionName, timestamp);
+                } catch (ApiException e) {
+                    messageLines.set(index, "Unable to save **" + serverDisplayName(server.getName()) + "**: " + e.getMessage());
+                } catch (Exception e) {
+                    messageLines.set(index, "Failed to save **" + serverDisplayName(server.getName()) + "**");
+                    System.err.println(e);
+                } finally {
+                    synchronized (messageLines) {
+                        event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+                    }
+                }
+                return null;
+            });
+        }
+
+        // Download and zip save files
+        CompletableFuture.allOf(futures).thenRunAsync(() -> {
+            PipedInputStream uploadStream = new PipedInputStream();
+            try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
+
+                List<String> finalMessageLines = new ArrayList<>(futures.length);
+                List<Save> saves = new ArrayList<>(futures.length);
+                for (int i = 0; i < futures.length; i++) {
+                    Save save = futures[i].join();
+                    if (save == null) continue;
+
+                    saves.add(save);
+                    finalMessageLines.add((save.sessionName != null ? save.sessionName + " on " : "") + "**" + serverDisplayName(servers.get(i).getName()) + "** at " + TimeFormat.DEFAULT.atInstant(save.timestamp));
+                }
+
+                String serversString = saves.size() + " server" + (saves.size() == 1 ? "" : "s");
+                event.getHook().editOriginal("Downloading save files from " + serversString + "...").queue();
+                event.getHook().editOriginal(String.join("\n", finalMessageLines))
+                        .setFiles(FileUpload.fromData(uploadStream, name + ".zip"))
+                        .queue(message -> guildManager.logAction(event.getUser(), "backed up " + serversString + " to " + message.getAttachments().get(0).getUrl()));
+
+                for (Save save : saves) {
+                    try (InputStream saveData = save.httpsApi.downloadSave(save.name)) {
+                        zipStream.putNextEntry(new ZipEntry(save.name + SaveFileReader.EXTENSION));
+                        saveData.transferTo(zipStream);
+                        zipStream.closeEntry();
+                    }
+                }
+
+            } catch (Exception e) {
+                event.getHook().editOriginal("Failed to transfer data").queue();
                 e.printStackTrace();
             }
         });

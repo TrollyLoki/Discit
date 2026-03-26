@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static net.trollyloki.discit.Utils.validateHostAddress;
+import static net.trollyloki.discit.AddressUtils.validateHostAddress;
 
 @NullMarked
 public class GuildManager {
@@ -35,7 +35,7 @@ public class GuildManager {
     private final String guildId;
     private final GuildData data;
 
-    private final Map<UUID, DashboardUpdater> updaters = new HashMap<>();
+    private final Map<UUID, ServerUpdater> updaters = new HashMap<>();
 
     private GuildManager(JDA jda, String guildId, GuildData data) {
         this.jda = jda;
@@ -55,7 +55,7 @@ public class GuildManager {
     private void save() {
         File dataFile = dataFile(guildId);
         try {
-            dataFile.getParentFile().mkdirs();
+            boolean ignored = dataFile.getParentFile().mkdirs();
             DATA_MAPPER.writerWithDefaultPrettyPrinter().writeValue(dataFile(guildId), data);
         } catch (IOException e) {
             System.err.println("FAILED TO SAVE DATA FOR GUILD " + guildId);
@@ -126,7 +126,7 @@ public class GuildManager {
         return data.getServers().get(serverId);
     }
 
-    public synchronized UUID addServer(String host, int port, String fingerprint) {
+    public synchronized Map.Entry<UUID, Server> addServer(String host, int port, String fingerprint) {
         if (validateHostAddress(host) == null) {
             throw new IllegalArgumentException("Invalid host address");
         }
@@ -141,11 +141,11 @@ public class GuildManager {
 
         initServer(serverId);
 
-        return serverId;
+        return Map.entry(serverId, serverData);
     }
 
     private void initServer(UUID serverId) {
-        DashboardUpdater updater = new DashboardUpdater(this, serverId);
+        ServerUpdater updater = new ServerUpdater(this, serverId);
         updaters.put(serverId, updater);
         updater.start();
     }
@@ -155,7 +155,7 @@ public class GuildManager {
         if (serverData == null) return null;
         save();
 
-        try (DashboardUpdater updater = updaters.remove(serverId)) {
+        try (ServerUpdater updater = updaters.remove(serverId)) {
             updater.stop();
         }
 
@@ -163,7 +163,7 @@ public class GuildManager {
     }
 
     public void updateServer(UUID serverId) {
-        DashboardUpdater updater = updaters.get(serverId);
+        ServerUpdater updater = updaters.get(serverId);
         if (updater != null) {
             updater.update();
         }

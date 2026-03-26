@@ -76,6 +76,7 @@ public class ServerData implements Server {
         return token != null;
     }
 
+    @SuppressWarnings("unused") // needed for Jackson serialization!
     public @Nullable String getToken() {
         return token;
     }

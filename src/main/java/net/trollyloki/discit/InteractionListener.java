@@ -593,7 +593,7 @@ public class InteractionListener extends ListenerAdapter {
         }
 
         event.replyModal(Modal.create("authentication:" + serverId, "Authenticate").addComponents(
-                TextDisplay.of("Enter authentication for " + serverDisplayName(server.getName())),
+                TextDisplay.of("Provide authentication for **" + serverDisplayName(server.getName()) + "**"),
                 Label.of("Method", "The method of authentication you wish to use", StringSelectMenu.create("type")
                         .addOption("API Token", "token", "Directly enter an API Token generated using the `server.GenerateAPIToken` command")
                         .addOption("Admin Password", "password", "Generate an API Token automatically using the server's admin password")
@@ -832,16 +832,26 @@ public class InteractionListener extends ListenerAdapter {
         if (missingAdminRole(replyCallback))
             return;
 
+        GuildManager guildManager = getGuildManager(replyCallback);
+
         String customId = "save";
         List<ModalTopLevelComponent> components = new ArrayList<>(2);
         if (fixedServerId != null) {
+            Server server = guildManager.getServer(fixedServerId);
+            if (server == null) {
+                replyCallback.reply("Unknown server").setEphemeral(true).queue();
+                return;
+            }
+
             customId += ":" + fixedServerId;
+            components.add(TextDisplay.of("Creating save on **" + serverDisplayName(server.getName()) + "**"));
         } else {
-            Map<UUID, Server> servers = getGuildManager(replyCallback).getServers();
+            Map<UUID, Server> servers = guildManager.getServers();
             if (servers.isEmpty()) {
                 replyCallback.reply("There are no servers that can be saved").setEphemeral(true).queue();
                 return;
             }
+
             components.add(Label.of("Server", serverSelectMenu("server", servers)
                     .setPlaceholder("Select a server")
                     .build()));
@@ -967,16 +977,26 @@ public class InteractionListener extends ListenerAdapter {
         if (missingAdminRole(replyCallback))
             return;
 
+        GuildManager guildManager = getGuildManager(replyCallback);
+
         String customId = "upload";
         List<ModalTopLevelComponent> components = new ArrayList<>(3);
         if (fixedServerId != null) {
+            Server server = guildManager.getServer(fixedServerId);
+            if (server == null) {
+                replyCallback.reply("Unknown server").setEphemeral(true).queue();
+                return;
+            }
+
             customId += ":" + fixedServerId;
+            components.add(TextDisplay.of("Uploading save to **" + serverDisplayName(server.getName()) + "**"));
         } else {
-            Map<UUID, Server> servers = getGuildManager(replyCallback).getServers();
+            Map<UUID, Server> servers = guildManager.getServers();
             if (servers.isEmpty()) {
                 replyCallback.reply("There are no servers that can be uploaded to").setEphemeral(true).queue();
                 return;
             }
+
             components.add(Label.of("Servers", "The server(s) that the save should be uploaded to", serverSelectMenu("servers", servers)
                     .setMaxValues(10)
                     .setPlaceholder("Select one or more servers")

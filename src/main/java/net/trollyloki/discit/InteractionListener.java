@@ -147,9 +147,10 @@ public class InteractionListener extends ListenerAdapter {
             case "retry" -> onAddRetry(event, id[1], Integer.parseInt(id[2]));
             case "add-confirm" -> onAddConfirm(event, id[1], Integer.parseInt(id[2]), id[3]);
             case "claim" -> onStartClaim(event, UUID.fromString(id[1]));
-            case "remove" -> onRemove(event, UUID.fromString(id[1]));
-            case "authenticate" -> onAuthenticate(event, UUID.fromString(id[1]));
-            case "deauthenticate" -> onDeauthenticate(event, UUID.fromString(id[1]));
+            case "list-remove" -> onRemoveFromList(event, UUID.fromString(id[1]));
+            case "list-authenticate" -> onAuthenticate(event, UUID.fromString(id[1]), true);
+            case "list-deauthenticate" -> onDeauthenticateFromList(event, UUID.fromString(id[1]));
+            case "authenticate" -> onAuthenticate(event, UUID.fromString(id[1]), false);
             case "dashboard-update" -> onUpdateDashboard(event, UUID.fromString(id[1]));
             case "dashboard-reload" -> onReloadFromDashboard(event, UUID.fromString(id[1]));
             case "dashboard-save" -> onSaveFromDashboard(event, UUID.fromString(id[1]));
@@ -173,7 +174,7 @@ public class InteractionListener extends ListenerAdapter {
         String[] id = event.getModalId().split(":");
         switch (id[0]) {
             case "claim" -> onClaim(event, UUID.fromString(id[1]));
-            case "authentication" -> onAuthentication(event, UUID.fromString(id[1]));
+            case "authentication" -> onAuthentication(event, UUID.fromString(id[1]), Boolean.parseBoolean(id[2]));
             case "reload" -> onReload(event);
             case "save" -> onSave(event, id.length > 1 ? UUID.fromString(id[1]) : null);
             case "upload" -> onUpload(event, id.length > 1 ? UUID.fromString(id[1]) : null);
@@ -533,6 +534,23 @@ public class InteractionListener extends ListenerAdapter {
         ).useComponentsV2().setEphemeral(true).queue();
     }
 
+    private static Container serverDetailsContainer(UUID serverId, Server server) {
+        List<Button> buttons = new ArrayList<>(3);
+        buttons.add(Button.primary("list-authenticate:" + serverId, server.hasToken() ? "Reauthenticate" : "Authenticate"));
+        if (server.hasToken()) {
+            buttons.add(Button.secondary("list-deauthenticate:" + serverId, "Deauthenticate"));
+        }
+        buttons.add(Button.danger("list-remove:" + serverId, "Remove"));
+
+        return Container.of(
+                TextDisplay.of("## " + serverDisplayName(server.getName())),
+                TextDisplay.of("### Host\n||```" + server.getHost() + "```||"),
+                TextDisplay.of("### Port\n```" + server.getPort() + "```"),
+                TextDisplay.of("### Fingerprint\n```" + server.getFingerprint() + "```"),
+                ActionRow.of(buttons)
+        );
+    }
+
     private void onListDetails(StringSelectInteractionEvent event) {
         if (missingAdminRole(event))
             return;
@@ -545,26 +563,13 @@ public class InteractionListener extends ListenerAdapter {
             return;
         }
 
-        List<Button> buttons = new ArrayList<>(3);
-        buttons.add(Button.primary("authenticate:" + serverId, server.hasToken() ? "Reauthenticate" : "Authenticate"));
-        if (server.hasToken()) {
-            buttons.add(Button.secondary("deauthenticate:" + serverId, "Deauthenticate"));
-        }
-        buttons.add(Button.danger("remove:" + serverId, "Remove"));
-
         event.editComponents(
-                Container.of(
-                        TextDisplay.of("## " + serverDisplayName(server.getName())),
-                        TextDisplay.of("### Host\n||```" + server.getHost() + "```||"),
-                        TextDisplay.of("### Port\n```" + server.getPort() + "```"),
-                        TextDisplay.of("### Fingerprint\n```" + server.getFingerprint() + "```"),
-                        ActionRow.of(buttons)
-                ),
+                serverDetailsContainer(serverId, server),
                 serverSelectForDetails(guildManager)
         ).useComponentsV2().queue();
     }
 
-    private void onRemove(ButtonInteractionEvent event, UUID serverId) {
+    private void onRemoveFromList(ButtonInteractionEvent event, UUID serverId) {
         if (missingAdminRole(event))
             return;
 
@@ -582,7 +587,7 @@ public class InteractionListener extends ListenerAdapter {
         guildManager.logAction(event.getUser(), "removed **" + serverDisplayName(server.getName()) + "**");
     }
 
-    private void onAuthenticate(ButtonInteractionEvent event, UUID serverId) {
+    private void onAuthenticate(ButtonInteractionEvent event, UUID serverId, boolean fromList) {
         if (missingAdminRole(event))
             return;
 
@@ -592,7 +597,7 @@ public class InteractionListener extends ListenerAdapter {
             return;
         }
 
-        event.replyModal(Modal.create("authentication:" + serverId, "Authenticate").addComponents(
+        event.replyModal(Modal.create("authentication:" + serverId + ":" + fromList, "Authenticate").addComponents(
                 TextDisplay.of("Provide authentication for **" + serverDisplayName(server.getName()) + "**"),
                 Label.of("Method", "The method of authentication you wish to use", StringSelectMenu.create("type")
                         .addOption("API Token", "token", "Directly enter an API Token generated using the `server.GenerateAPIToken` command")
@@ -604,7 +609,7 @@ public class InteractionListener extends ListenerAdapter {
         ).build()).queue();
     }
 
-    private void onAuthentication(ModalInteractionEvent event, UUID serverId) {
+    private void onAuthentication(ModalInteractionEvent event, UUID serverId, boolean fromList) {
         if (missingAdminRole(event))
             return;
 
@@ -649,7 +654,15 @@ public class InteractionListener extends ListenerAdapter {
                 }
             }
 
-            verifyAndSetToken(event, guildManager, serverId, null, token);
+            if (!verifyAndSetToken(event, guildManager, serverId, null, token))
+                return;
+
+            if (fromList) {
+                event.getHook().editOriginalComponents(
+                        serverDetailsContainer(serverId, server),
+                        serverSelectForDetails(guildManager)
+                ).useComponentsV2().queue();
+            }
         });
     }
 
@@ -658,11 +671,11 @@ public class InteractionListener extends ListenerAdapter {
         return output.substring(output.indexOf(':') + 1).trim();
     }
 
-    private static void verifyAndSetToken(ModalInteractionEvent event, GuildManager guildManager, UUID serverId, @Nullable String serverName, String token) {
+    private static boolean verifyAndSetToken(ModalInteractionEvent event, GuildManager guildManager, UUID serverId, @Nullable String serverName, String token) {
         Server server = guildManager.getServer(serverId);
         if (server == null) {
             event.getHook().sendMessage("Unknown server").setEphemeral(true).queue();
-            return;
+            return false;
         }
 
         // Validate token
@@ -670,11 +683,11 @@ public class InteractionListener extends ListenerAdapter {
             PrivilegeLevel privilegeLevel = PrivilegeLevel.ofToken(token);
             if (privilegeLevel != PrivilegeLevel.API_TOKEN) {
                 event.getHook().sendMessage("Incorrect token type").setEphemeral(true).queue();
-                return;
+                return false;
             }
         } catch (IllegalArgumentException e) {
             event.getHook().sendMessage("Incorrect token format").setEphemeral(true).queue();
-            return;
+            return false;
         }
 
         // Verify token
@@ -684,11 +697,11 @@ public class InteractionListener extends ListenerAdapter {
             httpsApi.verifyAuthenticationToken();
         } catch (InvalidTokenException e) {
             event.getHook().sendMessage("Token is invalid").setEphemeral(true).queue();
-            return;
+            return false;
         } catch (Exception e) {
             event.getHook().sendMessage("Failed to verify token").setEphemeral(true).queue();
             e.printStackTrace();
-            return;
+            return false;
         }
 
         // Save token
@@ -697,9 +710,10 @@ public class InteractionListener extends ListenerAdapter {
         serverName = serverName != null ? serverName : server.getName();
         event.getHook().sendMessage("Authentication successful").setEphemeral(true).queue();
         guildManager.logAction(event.getUser(), "added an authentication token for **" + serverDisplayName(serverName) + "**");
+        return true;
     }
 
-    private void onDeauthenticate(ButtonInteractionEvent event, UUID serverId) {
+    private void onDeauthenticateFromList(ButtonInteractionEvent event, UUID serverId) {
         if (missingAdminRole(event))
             return;
 
@@ -712,7 +726,12 @@ public class InteractionListener extends ListenerAdapter {
 
         guildManager.setServerToken(serverId, null);
 
-        event.reply("Authentication removed").setEphemeral(true).queue();
+        event.editComponents(
+                serverDetailsContainer(serverId, server),
+                serverSelectForDetails(guildManager)
+        ).useComponentsV2().queue();
+
+        event.getHook().sendMessage("Authentication removed").setEphemeral(true).queue();
         guildManager.logAction(event.getUser(), "removed the authentication token for **" + serverDisplayName(server.getName()) + "**");
     }
 

@@ -189,7 +189,9 @@ public class DashboardUpdater implements Closeable {
                 components.add(TextDisplay.of("-# Last updated " + TimeFormat.RELATIVE.now()));
 
                 Button updateButton = Button.success("dashboard-update:" + serverId, "Update");
-                if (hasToken) {
+                if (!serverStatus.isHttpsApiAvailable()) {
+                    components.add(ActionRow.of(updateButton));
+                } else if (hasToken) {
                     components.add(ActionRow.of(
                             updateButton,
                             Button.primary("dashboard-reload:" + serverId, "Reload Session"),

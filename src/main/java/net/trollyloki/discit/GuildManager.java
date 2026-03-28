@@ -72,7 +72,8 @@ public class GuildManager {
     }
 
     public boolean hasAdminRole(Member member) {
-        return member.getUnsortedRoles().contains(getAdminRole());
+        Role adminRole = getAdminRole();
+        return adminRole != null && member.getUnsortedRoles().contains(adminRole);
     }
 
     public @Nullable Role getAdminRole() {

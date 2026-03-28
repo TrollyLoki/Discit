@@ -56,7 +56,6 @@ public final class UploadInteractions {
             UPLOAD_BUTTON_ID = "upload",
             UPLOAD_MODAL_ID = "upload";
 
-    @NullMarked
     private record CachedAttachmentInfo(String url, String fileName) {
     }
 

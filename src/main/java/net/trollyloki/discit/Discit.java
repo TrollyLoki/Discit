@@ -8,6 +8,8 @@ import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -25,6 +27,8 @@ import static net.trollyloki.discit.interactions.UploadInteractions.UPLOAD_CONTE
 
 @NullMarked
 public class Discit {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Discit.class);
 
     private final JDA jda;
     private final Map<String, GuildManager> guildManagers = new ConcurrentHashMap<>();
@@ -72,6 +76,7 @@ public class Discit {
             try {
                 return GuildManager.load(jda, k);
             } catch (IOException e) {
+                LOGGER.error("Failed to initialize guild manager for guild {}", guildId, e);
                 throw new RuntimeException(e);
             }
         });
@@ -87,7 +92,7 @@ public class Discit {
     public static void main(String[] args) throws InterruptedException {
         INSTANCE = new Discit();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("SHUTDOWN");
+            LOGGER.info("Shutting down");
             try {
                 INSTANCE.shutdown();
             } catch (InterruptedException e) {

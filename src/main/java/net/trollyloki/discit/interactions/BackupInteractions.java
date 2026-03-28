@@ -8,6 +8,9 @@ import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +40,8 @@ public final class BackupInteractions {
     private BackupInteractions() {
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackupInteractions.class);
+
     public static final String
             BACKUP_COMMAND_NAME = "backup";
 
@@ -61,6 +66,8 @@ public final class BackupInteractions {
                 .setEphemeral(isDashboard(event))
                 .queue();
 
+        LOGGER.info("Backing up {} servers", serverArray.length);
+
         // Save all servers
         @SuppressWarnings("unchecked") CompletableFuture<@Nullable SaveInfo>[] futures = new CompletableFuture[serverArray.length];
         for (int i = 0; i < serverArray.length; i++) {
@@ -82,6 +89,7 @@ public final class BackupInteractions {
         }
 
         // Download and zip save files
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         CompletableFuture.allOf(futures).thenRunAsync(() -> {
             List<String> finalMessageLines = new ArrayList<>(futures.length);
             Map<Integer, SaveInfo> saves = new HashMap<>(futures.length);
@@ -110,9 +118,13 @@ public final class BackupInteractions {
                         .setFiles(FileUpload.fromData(uploadStream, name + ".zip"))
                         .queue(message -> logAction(event, "backed up " + serversString + " to " + message.getAttachments().get(0).getUrl()));
 
+                MDC.setContextMap(mdc);
+
                 for (Map.Entry<Integer, SaveInfo> entry : saves.entrySet()) {
                     Server server = serverArray[entry.getKey()];
                     SaveInfo saveInfo = entry.getValue();
+
+                    LOGGER.info("Downloading save \"{}\" from server \"{}\"", saveInfo.name(), server.getName());
 
                     try (InputStream saveData = server.httpsApi(Duration.ofSeconds(3)).downloadSave(saveInfo.name())) {
                         zipStream.putNextEntry(new ZipEntry(saveInfo.name() + SaveFileReader.EXTENSION));
@@ -125,7 +137,8 @@ public final class BackupInteractions {
             }
         }).exceptionallyAsync(throwable -> {
             event.getHook().editOriginal("Failed to transfer data").queue();
-            throwable.printStackTrace();
+            MDC.setContextMap(mdc);
+            LOGGER.error("Error creating backup file", throwable);
             return null;
         });
     }

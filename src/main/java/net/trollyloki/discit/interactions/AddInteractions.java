@@ -21,6 +21,9 @@ import net.trollyloki.jicsit.server.https.exception.PasswordlessLoginNotPossible
 import net.trollyloki.jicsit.server.query.QueryApi;
 import net.trollyloki.jicsit.server.query.ServerState;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.net.InetAddress;
 import java.time.Duration;
@@ -39,6 +42,8 @@ import static net.trollyloki.discit.InteractionUtils.*;
 public final class AddInteractions {
     private AddInteractions() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AddInteractions.class);
 
     public static final String
             ADD_COMMAND_NAME = "add",
@@ -70,6 +75,8 @@ public final class AddInteractions {
             return;
         }
 
+        LOGGER.info("Connecting to {}:{}", host, port);
+
         CompletableFuture.runAsync(() -> {
             try (QueryApi queryApi = QueryApi.of(address, port, Duration.ofSeconds(3))) {
 
@@ -90,10 +97,12 @@ public final class AddInteractions {
                 ).useComponentsV2().queue();
 
             } catch (Exception e) {
-                hook.editOriginal("Could not connect to that server").setComponents(ActionRow.of(
-                        Button.primary(buildId(ADD_RETRY_BUTTON_ID, host, port), "Retry")
-                )).queue();
-                e.printStackTrace();
+                hook.editOriginalComponents(
+                        TextDisplay.of("Could not connect to that server"),
+                        ActionRow.of(
+                                Button.primary(buildId(ADD_RETRY_BUTTON_ID, host, port), "Retry")
+                        )
+                ).useComponentsV2().queue();
             }
         });
     }
@@ -117,7 +126,7 @@ public final class AddInteractions {
         Server server = serverEntry.getValue();
 
         String name;
-        try (QueryApi queryApi = server.queryApi(Duration.ofSeconds(3))) {
+        try (QueryApi queryApi = server.queryApi(Duration.ofSeconds(1))) {
             name = inlineServerDisplayName(queryApi.pollServerState().name());
         } catch (Exception e) {
             name = "a server";
@@ -125,7 +134,8 @@ public final class AddInteractions {
         event.editComponents(TextDisplay.of("Added " + name)).useComponentsV2().queue();
         logAction(event, "added " + name);
 
-        // Check if the server is unclaimed
+        // Offer to claim the server if possible
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         CompletableFuture.runAsync(() -> {
             try {
                 server.httpsApi(Duration.ofSeconds(3)).passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
@@ -141,7 +151,8 @@ public final class AddInteractions {
             } catch (PasswordlessLoginNotPossibleException e) {
                 // Could not log in as initial admin so the server must be claimed already
             } catch (Exception e) {
-                e.printStackTrace();
+                MDC.setContextMap(mdc);
+                LOGGER.warn("Failed to check if added server is claimed", e);
             }
         });
     }
@@ -189,6 +200,10 @@ public final class AddInteractions {
         }
 
         event.deferEdit().queue();
+
+        LOGGER.info("Claiming server \"{}\"", name.getAsString());
+
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "claim", httpsApi -> {
 
             httpsApi.setToken(null);
@@ -198,12 +213,13 @@ public final class AddInteractions {
             // Start the automatic authentication process
             //TODO: If checkbox checked
             CompletableFuture.runAsync(() -> {
+                MDC.setContextMap(mdc);
                 try {
                     String token = generateToken(httpsApi);
                     verifyAndSetToken(event, serverIdString, token, name.getAsString());
                 } catch (Exception e) {
                     event.getHook().sendMessage("Automatic authentication failed").queue();
-                    e.printStackTrace();
+                    LOGGER.warn("Automatic authentication for server \"{}\" failed", name.getAsString(), e);
                 }
             });
 

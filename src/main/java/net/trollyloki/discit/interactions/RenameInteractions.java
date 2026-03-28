@@ -9,6 +9,8 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.Server;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
@@ -21,6 +23,8 @@ import static net.trollyloki.discit.InteractionUtils.requestAsync;
 public final class RenameInteractions {
     private RenameInteractions() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RenameInteractions.class);
 
     public static final String
             RENAME_BUTTON_ID = "rename",
@@ -53,6 +57,9 @@ public final class RenameInteractions {
         String newName = name.getAsString();
 
         event.deferReply(isDashboard(event)).queue();
+
+        LOGGER.info("Renaming server \"{}\" to \"{}\"", originalName, newName);
+
         requestAsync(server, "rename", httpsApi -> {
             httpsApi.renameServer(newName);
         }).thenApplyAsync(r -> {

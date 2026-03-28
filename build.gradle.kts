@@ -17,6 +17,9 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jspecify:jspecify:1.0.0")
+    runtimeOnly("ch.qos.logback:logback-classic:1.5.32")
+
     implementation(libs.jda) {
         exclude(module = "opus-java")
         exclude(module = "tink")

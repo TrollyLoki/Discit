@@ -15,6 +15,9 @@ import net.trollyloki.jicsit.server.https.exception.ApiException;
 import net.trollyloki.jicsit.server.https.exception.InvalidTokenException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.awt.*;
 import java.time.Clock;
@@ -40,6 +43,8 @@ public final class InteractionUtils {
     private InteractionUtils() {
     }
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(InteractionUtils.class);
+
     public static final Color
             RED_ACCENT = Color.getHSBColor(.000f, .75f, 1.00f),
             YELLOW_ACCENT = Color.getHSBColor(.125f, .75f, 1.00f),
@@ -61,6 +66,7 @@ public final class InteractionUtils {
         if (member != null && member.hasPermission(Permission.MANAGE_SERVER)) {
             return false;
         }
+        LOGGER.info("Unauthorized user: missing Manager Server permission");
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
@@ -70,6 +76,7 @@ public final class InteractionUtils {
         if (member != null && getGuildManager(callback).hasAdminRole(member)) {
             return false;
         }
+        LOGGER.info("Unauthorized user: missing administrator role");
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
@@ -140,6 +147,8 @@ public final class InteractionUtils {
         if (server == null)
             return false;
 
+        serverName = serverName != null ? serverName : server.getName();
+
         // Validate token
         try {
             PrivilegeLevel privilegeLevel = PrivilegeLevel.ofToken(token);
@@ -152,6 +161,8 @@ public final class InteractionUtils {
             return false;
         }
 
+        LOGGER.info("Verifying token for server \"{}\"", serverName);
+
         // Verify token
         try {
             HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
@@ -162,14 +173,13 @@ public final class InteractionUtils {
             return false;
         } catch (Exception e) {
             event.getHook().sendMessage("Failed to verify token").setEphemeral(true).queue();
-            e.printStackTrace();
+            LOGGER.warn("Failed to verify authentication token for server \"{}\"", serverName, e);
             return false;
         }
 
         // Save token
         getGuildManager(event).setServerToken(UUID.fromString(serverIdString), token);
 
-        serverName = serverName != null ? serverName : server.getName();
         event.getHook().sendMessage("Authentication successful").setEphemeral(true).queue();
         logActionWithServer(event, "added an authentication token for", serverName);
         return true;
@@ -183,6 +193,7 @@ public final class InteractionUtils {
     }
 
     public static <T extends @Nullable Object> CompletableFuture<T> requestAsync(Server server, String actionString, Function<HttpsApi, T> action) {
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         return CompletableFuture.supplyAsync(() -> {
             HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
             return action.apply(httpsApi);
@@ -193,7 +204,8 @@ public final class InteractionUtils {
                 message = "Unable" + message + ": " + apiException.getMessage();
             } else {
                 message = "Failed" + message;
-                exception.printStackTrace();
+                MDC.setContextMap(mdc);
+                LOGGER.warn("Failed to {} server \"{}\"", actionString, server.getName(), exception.getCause());
             }
             // Rethrowing specifically a CompletionException here prevents it from being doubly wrapped
             throw new CompletionException(message, exception.getCause());

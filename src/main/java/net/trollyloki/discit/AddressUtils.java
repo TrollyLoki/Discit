@@ -2,6 +2,8 @@ package net.trollyloki.discit;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -10,6 +12,8 @@ import java.net.UnknownHostException;
 public final class AddressUtils {
     private AddressUtils() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AddressUtils.class);
 
     // It's probably still a good idea to set up an external firewall, but checking this can't hurt
     private static boolean isPublic(InetAddress address) {
@@ -28,6 +32,7 @@ public final class AddressUtils {
             }
         } catch (UnknownHostException ignored) {
         }
+        LOGGER.info("Invalid host address \"{}\"", host);
         return null;
     }
 

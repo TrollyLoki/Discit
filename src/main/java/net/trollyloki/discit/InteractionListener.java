@@ -1,5 +1,6 @@
 package net.trollyloki.discit;
 
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -7,7 +8,11 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.Interaction;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.Arrays;
 import java.util.UUID;
@@ -34,6 +39,16 @@ import static net.trollyloki.discit.interactions.UploadInteractions.*;
 @NullMarked
 public class InteractionListener extends ListenerAdapter {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(InteractionListener.class);
+
+    private static void setMDC(Interaction interaction) {
+        Guild guild = interaction.getGuild();
+        if (guild != null) {
+            MDC.put("guild", guild.getName());
+        }
+        MDC.put("user", interaction.getUser().getName());
+    }
+
     public static final String
             CANCEL_BUTTON_ID = "cancel",
             DASHBOARD_UPDATE_BUTTON_ID = "dashboard-update";
@@ -44,6 +59,7 @@ public class InteractionListener extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
+        setMDC(event);
         switch (event.getName()) {
             case SETTINGS_COMMAND_NAME -> onSettingsCommand(event);
             case ADD_COMMAND_NAME -> onAddCommand(event);
@@ -52,28 +68,34 @@ public class InteractionListener extends ListenerAdapter {
             case SAVE_COMMAND_NAME -> onSaveCommand(event);
             case UPLOAD_COMMAND_NAME -> onUploadCommand(event);
             case BACKUP_COMMAND_NAME -> onBackupCommand(event);
+            default -> LOGGER.warn("Unknown slash command {}", event.getName());
         }
     }
 
     @Override
     public void onMessageContextInteraction(MessageContextInteractionEvent event) {
+        setMDC(event);
         switch (event.getName()) {
             case UPLOAD_CONTEXT_COMMAND_NAME -> onUploadFromMessage(event);
+            default -> LOGGER.warn("Unknown message context command {}", event.getName());
         }
     }
 
     @Override
     public void onEntitySelectInteraction(EntitySelectInteractionEvent event) {
+        setMDC(event);
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
             case ADMIN_ROLE_SELECT_ID -> onAdminRoleSelect(event);
             case ACTION_LOG_CHANNEL_SELECT_ID -> onActionLogChannelSelect(event);
             case DASHBOARD_CHANNEL_SELECT_ID -> onDashboardChannelSelect(event);
+            default -> LOGGER.warn("Unknown entity select ID {}", event.getComponentId());
         }
     }
 
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
+        setMDC(event);
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
             case CANCEL_BUTTON_ID -> onCancelButton(event);
@@ -91,19 +113,23 @@ public class InteractionListener extends ListenerAdapter {
             case RENAME_BUTTON_ID -> onRenameButton(event, id[1]);
             case SERVER_SETTINGS_BUTTON_ID -> onSettingsButton(event, id[1]);
             case AGS_BUTTON_ID -> onAdvancedGameSettingsButton(event, id[1]);
+            default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
         }
     }
 
     @Override
     public void onStringSelectInteraction(StringSelectInteractionEvent event) {
+        setMDC(event);
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
             case LIST_SELECT_ID -> onListSelect(event);
+            default -> LOGGER.warn("Unknown string select ID {}", event.getComponentId());
         }
     }
 
     @Override
     public void onModalInteraction(ModalInteractionEvent event) {
+        setMDC(event);
         String[] id = event.getModalId().split(":");
         switch (id[0]) {
             case CLAIM_MODAL_ID -> onClaimModal(event, id[1]);
@@ -112,6 +138,7 @@ public class InteractionListener extends ListenerAdapter {
             case SAVE_MODAL_ID -> onSaveModal(event, id.length > 1 ? id[1] : null);
             case UPLOAD_MODAL_ID -> onUploadModal(event, id.length > 1 ? id[1] : null);
             case RENAME_MODAL_ID -> onRenameModal(event, id[1]);
+            default -> LOGGER.warn("Unknown modal ID {}", event.getModalId());
         }
     }
 

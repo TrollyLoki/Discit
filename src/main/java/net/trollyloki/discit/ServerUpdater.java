@@ -22,6 +22,9 @@ import net.trollyloki.jicsit.server.query.ServerStatus;
 import net.trollyloki.jicsit.server.query.ServerSubState;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.io.Closeable;
 import java.net.SocketTimeoutException;
@@ -52,6 +55,8 @@ import static net.trollyloki.discit.interactions.UploadInteractions.UPLOAD_BUTTO
 
 @NullMarked
 public class ServerUpdater implements Closeable {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerUpdater.class);
 
     private static final Duration
             QUERY_TIMEOUT = Duration.ofSeconds(5),
@@ -108,6 +113,7 @@ public class ServerUpdater implements Closeable {
     @Override
     public void close() {
         if (queryApi != null) {
+            LOGGER.info("Closing update socket");
             queryApi.close();
         }
 
@@ -117,6 +123,7 @@ public class ServerUpdater implements Closeable {
 
             if (messageId == null) return;
 
+            LOGGER.info("Deleting dashboard message for server \"{}\"", server.getName());
             channel.deleteMessageById(messageId).queue();
         });
 
@@ -125,6 +132,7 @@ public class ServerUpdater implements Closeable {
 
     private void run() {
         try {
+            MDC.put("guild", guildManager.getGuild().getName());
 
             ServerStatus serverStatus;
             short gameStateVersion;
@@ -151,7 +159,7 @@ public class ServerUpdater implements Closeable {
             boolean queryHttps = serverStatus.isHttpsApiAvailable() && (update || cachedGameState == null || cachedGameStateVersion != gameStateVersion);
             String errorMessage = null;
             if (queryHttps) {
-                System.out.println("QUERYING HTTPS API for version " + gameStateVersion);
+                LOGGER.info("Querying HTTPS API of server \"{}\" for game state version {}", name, gameStateVersion);
                 try {
                     HttpsApi httpsApi = server.httpsApi(API_TIMEOUT);
                     if (httpsApi.getPrivilegeLevel() == PrivilegeLevel.NOT_AUTHENTICATED) {
@@ -163,13 +171,13 @@ public class ServerUpdater implements Closeable {
                     errorMessage = "Unable to query game state: " + e.getMessage();
                 } catch (RequestException e) {
                     errorMessage = "Failed to query game state";
-                    e.printStackTrace();
+                    LOGGER.warn("Failed to query game state of server \"{}\"", name, e);
                 }
             }
 
             boolean hasToken = server.hasToken();
             if (update || !Objects.equals(name, lastName) || serverStatus != lastServerStatus || errorMessage != null || cachedGameStateVersion != lastGameStateVersion || hasToken != lastHasToken) {
-                System.out.println("UPDATING DASHBOARD MESSAGE");
+                LOGGER.info("Updating dashboard message for server \"{}\"", name);
 
                 Container container = createDashboardContainer(serverId.toString(), name, serverStatus, errorMessage, cachedGameState, hasToken);
 
@@ -184,14 +192,14 @@ public class ServerUpdater implements Closeable {
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.warn("Unexpected exception in update loop", e);
         }
     }
 
     private void updateDashboardMessage(Container container) {
         GuildMessageChannel channel = guildManager.getDashboardChannel();
         if (channel == null) {
-            System.err.println("Cannot access dashboard channel");
+            LOGGER.warn("Cannot access dashboard channel");
             return;
         }
 

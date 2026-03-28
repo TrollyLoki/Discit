@@ -16,6 +16,9 @@ import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -29,6 +32,8 @@ import static net.trollyloki.discit.InteractionUtils.*;
 public final class SaveInteractions {
     private SaveInteractions() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SaveInteractions.class);
 
     public static final String
             SAVE_COMMAND_NAME = "save",
@@ -89,9 +94,17 @@ public final class SaveInteractions {
         }
 
         event.deferReply(isDashboard(event)).queue();
+
+        LOGGER.info("Saving server \"{}\" as \"{}\"", server.getName(), saveName);
+
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         saveAsync(server, saveName).thenComposeAsync(saveInfo -> {
 
             event.getHook().editOriginal("Downloading `" + saveInfo.name() + SaveFileReader.EXTENSION + "` from " + inlineServerDisplayName(server.getName()) + "...").queue();
+
+            MDC.setContextMap(mdc);
+            LOGGER.info("Downloading save \"{}\" from server \"{}\"", saveInfo.name(), server.getName());
+
             return requestAsync(server, "download `" + saveInfo.name() + SaveFileReader.EXTENSION + "` from", httpsApi -> {
                 return new SaveDownload(saveInfo, httpsApi.downloadSave(saveInfo.name()));
             });

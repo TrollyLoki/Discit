@@ -19,6 +19,9 @@ import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +38,8 @@ import static net.trollyloki.discit.InteractionUtils.*;
 public final class ListInteractions {
     private ListInteractions() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ListInteractions.class);
 
     public static final String
             LIST_COMMAND_NAME = "list",
@@ -155,6 +160,8 @@ public final class ListInteractions {
 
         CompletableFuture<String> tokenFuture;
         if (type.getAsStringList().get(0).equals("password")) {
+            LOGGER.info("Generating API token for server \"{}\"", server.getName());
+
             tokenFuture = requestAsync(server, "generate token for", httpsApi -> {
 
                 // Convert password into token
@@ -163,11 +170,18 @@ public final class ListInteractions {
                 return generateToken(httpsApi);
 
             });
+            tokenFuture.exceptionallyAsync(throwable -> {
+                event.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
+                //noinspection DataFlowIssue: not actually returned to anything
+                return null;
+            });
         } else {
             tokenFuture = CompletableFuture.completedFuture(authentication.getAsString());
         }
 
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         tokenFuture.thenAcceptAsync(token -> {
+            MDC.setContextMap(mdc);
             if (!verifyAndSetToken(event, serverIdString, token, null))
                 return;
 
@@ -177,9 +191,6 @@ public final class ListInteractions {
                         serverSelectForDetails(event)
                 ).useComponentsV2().queue();
             }
-        }).exceptionallyAsync(throwable -> {
-            event.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
-            return null;
         });
     }
 

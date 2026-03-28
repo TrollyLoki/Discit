@@ -21,6 +21,9 @@ import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,6 +47,8 @@ import static net.trollyloki.discit.InteractionUtils.*;
 public final class UploadInteractions {
     private UploadInteractions() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(UploadInteractions.class);
 
     public static final String
             UPLOAD_CONTEXT_COMMAND_NAME = "Upload save file",
@@ -191,6 +196,8 @@ public final class UploadInteractions {
         String saveName = SaveFileReader.saveNameOf(saveFileAttachment.getFileName());
 
         event.deferReply(isDashboard(event)).queue();
+
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         saveFileAttachment.download().thenAcceptAsync(downloadStream -> {
 
             List<String> messageLines = Collections.synchronizedList(servers.stream()
@@ -200,21 +207,26 @@ public final class UploadInteractions {
             // No need to synchronize here, the list won't be changing yet
             event.getHook().editOriginal(String.join("\n", messageLines)).queue();
 
+            MDC.setContextMap(mdc);
+
             InputStream[] uploadStreams;
             try {
                 uploadStreams = splitInputStream(downloadStream, servers.size(), e -> {
                     event.getHook().editOriginal("Failed to transfer data").queue();
-                    e.printStackTrace();
+                    MDC.setContextMap(mdc);
+                    LOGGER.error("Error while streaming split save data", e);
                 });
             } catch (Exception e) {
                 event.getHook().editOriginal("Failed to start data transfer").queue();
-                e.printStackTrace();
+                LOGGER.error("Failed to split save data", e);
                 return;
             }
 
             for (int i = 0; i < servers.size(); i++) {
                 final int index = i;
                 Server server = servers.get(index);
+
+                LOGGER.info("Uploading save \"{}\" to server \"{}\"", saveName, server.getName());
 
                 requestAsync(server, "upload " + file + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {
@@ -234,8 +246,9 @@ public final class UploadInteractions {
                 });
             }
         }).exceptionallyAsync(throwable -> {
-            event.getHook().editOriginal("Failed to retrieve file").queue();
-            throwable.printStackTrace();
+            event.getHook().editOriginal("Failed to retrieve attachment").queue();
+            MDC.setContextMap(mdc);
+            LOGGER.error("Failed to retrieve attachment", throwable);
             return null;
         });
     }

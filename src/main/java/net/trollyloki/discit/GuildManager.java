@@ -12,6 +12,8 @@ import net.trollyloki.discit.data.GuildData;
 import net.trollyloki.discit.data.ServerData;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,6 +26,8 @@ import static net.trollyloki.discit.AddressUtils.validateHostAddress;
 
 @NullMarked
 public class GuildManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GuildManager.class);
 
     private static final ObjectMapper DATA_MAPPER = new ObjectMapper();
 
@@ -58,8 +62,7 @@ public class GuildManager {
             boolean ignored = dataFile.getParentFile().mkdirs();
             DATA_MAPPER.writerWithDefaultPrettyPrinter().writeValue(dataFile(guildId), data);
         } catch (IOException e) {
-            System.err.println("FAILED TO SAVE DATA FOR GUILD " + guildId);
-            e.printStackTrace();
+            LOGGER.error("Failed to save data for guild {}", guildId, e);
         }
     }
 

@@ -9,6 +9,8 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.Server;
 import org.jspecify.annotations.NullMarked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +25,8 @@ import static net.trollyloki.discit.InteractionUtils.*;
 public final class ReloadInteractions {
     private ReloadInteractions() {
     }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReloadInteractions.class);
 
     public static final String
             RELOAD_COMMAND_NAME = "reload",
@@ -80,6 +84,8 @@ public final class ReloadInteractions {
         for (int i = 0; i < servers.size(); i++) {
             final int index = i;
             Server server = servers.get(index);
+
+            LOGGER.info("Reloading server \"{}\"", server.getName());
 
             requestAsync(server, "reload", httpsApi -> {
                 httpsApi.save(RELOAD_SAVE_NAME);

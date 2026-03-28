@@ -22,6 +22,8 @@ import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.interactions.AddInteractions.*;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.onAdvancedGameSettingsButton;
+import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
+import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.BackupInteractions.onBackupCommand;
 import static net.trollyloki.discit.interactions.ListInteractions.*;
@@ -77,6 +79,7 @@ public class InteractionListener extends ListenerAdapter {
         setMDC(event);
         switch (event.getName()) {
             case UPLOAD_CONTEXT_COMMAND_NAME -> onUploadFromMessage(event);
+            case ANALYZE_SAVE_CONTEXT_COMMAND_NAME -> onAnalyzeSaveFromMessage(event);
             default -> LOGGER.warn("Unknown message context command {}", event.getName());
         }
     }

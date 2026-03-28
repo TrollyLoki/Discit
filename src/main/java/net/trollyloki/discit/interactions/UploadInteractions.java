@@ -7,7 +7,6 @@ import net.dv8tion.jda.api.components.label.LabelChildComponent;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -29,7 +28,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -62,20 +60,10 @@ public final class UploadInteractions {
     //FIXME: This is a data leak, but it should be fine for now considering how infrequently the message context command is going to be used
     private static final Map<UUID, CachedAttachmentInfo> ATTACHMENT_CACHE = new ConcurrentHashMap<>();
 
-    private static List<Message.Attachment> findAllMessageAttachments(Message message) {
-        List<Message.Attachment> attachments = new ArrayList<>(message.getAttachments());
-        for (MessageSnapshot snapshot : message.getMessageSnapshots()) {
-            attachments.addAll(snapshot.getAttachments());
-        }
-        return attachments;
-    }
-
     public static void onUploadFromMessage(MessageContextInteractionEvent event) {
-        List<Message.Attachment> attachments = findAllMessageAttachments(event.getTarget());
-        if (attachments.isEmpty()) {
-            event.reply("Could not find any files attached to that message").setEphemeral(true).queue();
+        List<Message.Attachment> attachments = findMessageAttachments(event);
+        if (attachments == null)
             return;
-        }
 
         onUploadHelper(event, event, customId -> {
             StringSelectMenu.Builder builder = StringSelectMenu.create(customId);

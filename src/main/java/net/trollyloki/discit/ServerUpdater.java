@@ -238,7 +238,7 @@ public class ServerUpdater implements Closeable {
                 components.add(TextDisplay.of(errorMessage));
             } else {
                 components.add(TextDisplay.of("### " + gameState.activeSessionName()));
-                components.add(TextDisplay.of("Game Duration: " + formatDuration(gameState.totalGameDuration())));
+                components.add(TextDisplay.of("**Game Duration**\n" + formatDuration(gameState.totalGameDuration())));
                 components.add(TextDisplay.of("### Current Players\n" + gameState.connectedPlayerCount() + "/" + gameState.playerLimit()));
                 components.add(TextDisplay.of("### Average Tick Rate\n" + gameState.averageTickRate()));
             }

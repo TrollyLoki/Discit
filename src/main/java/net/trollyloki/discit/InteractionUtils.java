@@ -4,7 +4,10 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.trollyloki.jicsit.save.SaveHeader;
@@ -49,6 +52,19 @@ public final class InteractionUtils {
             RED_ACCENT = Color.getHSBColor(.000f, .75f, 1.00f),
             YELLOW_ACCENT = Color.getHSBColor(.125f, .75f, 1.00f),
             GREEN_ACCENT = Color.getHSBColor(.375f, .75f, 1.00f);
+
+    public static @Nullable List<Message.Attachment> findMessageAttachments(MessageContextInteractionEvent event) {
+        List<Message.Attachment> attachments = new ArrayList<>(event.getTarget().getAttachments());
+        for (MessageSnapshot snapshot : event.getTarget().getMessageSnapshots()) {
+            attachments.addAll(snapshot.getAttachments());
+        }
+
+        if (attachments.isEmpty()) {
+            event.reply("Could not find any files attached to that message").setEphemeral(true).queue();
+            return null;
+        }
+        return attachments;
+    }
 
     public static GuildManager getGuildManager(Interaction interaction) {
         Guild guild = interaction.getGuild();

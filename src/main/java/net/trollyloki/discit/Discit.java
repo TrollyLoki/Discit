@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static net.trollyloki.discit.interactions.AddInteractions.ADD_COMMAND_NAME;
+import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ListInteractions.LIST_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_COMMAND_NAME;
@@ -51,7 +52,8 @@ public class Discit {
                 Commands.message(UPLOAD_CONTEXT_COMMAND_NAME),
                 Commands.slash(BACKUP_COMMAND_NAME, "Create and download a save from each server").addOptions(
                         new OptionData(OptionType.STRING, "name", "Backup file name", true)
-                )
+                ),
+                Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME)
         ).queue();
 
         this.jda.awaitReady();

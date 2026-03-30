@@ -2,6 +2,7 @@ package net.trollyloki.discit.interactions;
 
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.checkbox.Checkbox;
 import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
@@ -166,8 +167,8 @@ public final class AddInteractions {
                 Label.of("Server Name", TextInput.of("name", TextInputStyle.SHORT)),
                 Label.of("Admin Password", TextInput.of("password1", TextInputStyle.SHORT)),
                 Label.of("Repeat Admin Password", TextInput.of("password2", TextInputStyle.SHORT)),
-                //TODO: Add a (default enabled) checkbox to skip automatic authentication (and update below disclaimer?)
-                TextDisplay.of("The provided password is only used to claim the server and generate an API token. It will not be stored afterwards.")
+                Label.of("Authenticate", "Should authentication be obtained automatically?", Checkbox.of("authenticate", true)),
+                TextDisplay.of("The provided password is only used to claim the server (including generating an API token if **Authenticate** is checked). It will not be stored afterwards.")
         ).build()).queue();
     }
 
@@ -199,6 +200,8 @@ public final class AddInteractions {
             return;
         }
 
+        ModalMapping authenticate = event.getValue("authenticate");
+
         event.deferEdit().queue();
 
         LOGGER.info("Claiming server \"{}\"", name.getAsString());
@@ -210,18 +213,19 @@ public final class AddInteractions {
             httpsApi.passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
             httpsApi.claimServer(name.getAsString(), password1.getAsString());
 
-            // Start the automatic authentication process
-            //TODO: If checkbox checked
-            CompletableFuture.runAsync(() -> {
-                MDC.setContextMap(mdc);
-                try {
-                    String token = generateToken(httpsApi);
-                    verifyAndSetToken(event, serverIdString, token, name.getAsString());
-                } catch (Exception e) {
-                    event.getHook().sendMessage("Automatic authentication failed").queue();
-                    LOGGER.warn("Automatic authentication for server \"{}\" failed", name.getAsString(), e);
-                }
-            });
+            if (authenticate != null && authenticate.getAsBoolean()) {
+                // Start the automatic authentication process
+                CompletableFuture.runAsync(() -> {
+                    MDC.setContextMap(mdc);
+                    try {
+                        String token = generateToken(httpsApi);
+                        verifyAndSetToken(event, serverIdString, token, name.getAsString());
+                    } catch (Exception e) {
+                        event.getHook().sendMessage("Automatic authentication failed").queue();
+                        LOGGER.warn("Automatic authentication for server \"{}\" failed", name.getAsString(), e);
+                    }
+                });
+            }
 
         }).thenApplyAsync(r -> {
             logActionWithServer(event, "claimed", name.getAsString());

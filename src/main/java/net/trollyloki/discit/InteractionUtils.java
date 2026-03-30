@@ -68,8 +68,9 @@ public final class InteractionUtils {
 
     public static GuildManager getGuildManager(Interaction interaction) {
         Guild guild = interaction.getGuild();
-        if (guild == null) //FIXME: Is this going to cause problems?
-            throw new UnsupportedOperationException("This operation can only be done from within a guild");
+        if (guild == null) {
+            throw new UnsupportedOperationException("Interaction must take place within a guild");
+        }
         return Discit.get().getGuildManager(guild.getId());
     }
 
@@ -77,22 +78,39 @@ public final class InteractionUtils {
         return getGuildManager(interaction).isDashboard(interaction.getChannel());
     }
 
-    public static boolean cannotManageGuild(IReplyCallback callback) {
+    public static @Nullable Member getMember(IReplyCallback callback) {
         Member member = callback.getMember();
-        if (member != null && member.hasPermission(Permission.MANAGE_SERVER)) {
+        if (member == null) {
+            callback.reply("That command can only be used within a guild").setEphemeral(true).queue();
+            return null;
+        }
+        return member;
+    }
+
+    public static boolean cannotManageGuild(IReplyCallback callback) {
+        Member member = getMember(callback);
+        if (member == null)
+            return true;
+
+        if (member.hasPermission(Permission.MANAGE_SERVER)) {
             return false;
         }
-        LOGGER.info("Unauthorized user: missing Manager Server permission");
+
+        LOGGER.info("Unauthorized user: {} lacks the Manager Server permission", callback.getUser().getAsMention());
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
 
     public static boolean missingAdminRole(IReplyCallback callback) {
-        Member member = callback.getMember();
-        if (member != null && getGuildManager(callback).hasAdminRole(member)) {
+        Member member = getMember(callback);
+        if (member == null)
+            return true;
+
+        if (getGuildManager(callback).hasAdminRole(member)) {
             return false;
         }
-        LOGGER.info("Unauthorized user: missing administrator role");
+
+        LOGGER.info("Unauthorized user: {} lacks the administrator role", callback.getUser().getAsMention());
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }

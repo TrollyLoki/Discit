@@ -47,7 +47,7 @@ public class InteractionListener extends ListenerAdapter {
         MDC.put("user", interaction.getUser().getName());
 
         Guild guild = interaction.getGuild();
-        if (guild != null) MDC.put("guild", guild.getName());
+        if (guild != null && !guild.isDetached()) MDC.put("guild", guild.getName());
         else MDC.remove("guild");
     }
 

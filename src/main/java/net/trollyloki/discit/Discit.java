@@ -3,6 +3,8 @@ package net.trollyloki.discit;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.interactions.IntegrationType;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.Commands;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
@@ -39,21 +41,23 @@ public class Discit {
         this.jda.addEventListener(new InteractionListener());
 
         this.jda.updateCommands().addCommands(
-                Commands.slash(SETTINGS_COMMAND_NAME, "Change settings"),
-                Commands.slash(ADD_COMMAND_NAME, "Add a server").addOptions(
+                Commands.slash(SETTINGS_COMMAND_NAME, "Change settings").setContexts(InteractionContextType.GUILD),
+                Commands.slash(ADD_COMMAND_NAME, "Add a server").setContexts(InteractionContextType.GUILD).addOptions(
                         new OptionData(OptionType.STRING, "host", "Server host address", true),
                         new OptionData(OptionType.INTEGER, "port", "Server port", true)
                                 .setRequiredRange(0, 65535)
                 ),
-                Commands.slash(LIST_COMMAND_NAME, "List added servers"),
-                Commands.slash(RELOAD_COMMAND_NAME, "Save and reload the active session on one or more servers"),
-                Commands.slash(SAVE_COMMAND_NAME, "Create and download a save from a server"),
-                Commands.slash(UPLOAD_COMMAND_NAME, "Upload a save file to one or more servers"),
-                Commands.message(UPLOAD_CONTEXT_COMMAND_NAME),
-                Commands.slash(BACKUP_COMMAND_NAME, "Create and download a save from each server").addOptions(
+                Commands.slash(LIST_COMMAND_NAME, "List added servers").setContexts(InteractionContextType.GUILD),
+                Commands.slash(RELOAD_COMMAND_NAME, "Save and reload the active session on one or more servers").setContexts(InteractionContextType.GUILD),
+                Commands.slash(SAVE_COMMAND_NAME, "Create and download a save from a server").setContexts(InteractionContextType.GUILD),
+                Commands.slash(UPLOAD_COMMAND_NAME, "Upload a save file to one or more servers").setContexts(InteractionContextType.GUILD),
+                Commands.message(UPLOAD_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
+                Commands.slash(BACKUP_COMMAND_NAME, "Create and download a save from each server").setContexts(InteractionContextType.GUILD).addOptions(
                         new OptionData(OptionType.STRING, "name", "Backup file name", true)
                 ),
-                Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME)
+                Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(
+                        InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
+                ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL)
         ).queue();
 
         this.jda.awaitReady();

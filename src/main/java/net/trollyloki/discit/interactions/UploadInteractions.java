@@ -16,6 +16,7 @@ import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
+import net.trollyloki.discit.AttachmentCache;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
@@ -32,7 +33,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -54,30 +54,21 @@ public final class UploadInteractions {
             UPLOAD_BUTTON_ID = "upload",
             UPLOAD_MODAL_ID = "upload";
 
-    private record CachedAttachmentInfo(String url, String fileName) {
-    }
-
-    //FIXME: This is a data leak, but it should be fine for now considering how infrequently the message context command is going to be used
-    private static final Map<UUID, CachedAttachmentInfo> ATTACHMENT_CACHE = new ConcurrentHashMap<>();
+    private static final AttachmentCache ATTACHMENT_CACHE = new AttachmentCache();
 
     public static void onUploadFromMessage(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = findMessageAttachments(event);
         if (attachments == null)
             return;
 
+        ATTACHMENT_CACHE.put(event.getUser(), attachments);
+
         onUploadHelper(event, event, customId -> {
             StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
-            boolean first = true;
-            for (Message.Attachment attachment : attachments) {
-                UUID value = UUID.randomUUID();
-                ATTACHMENT_CACHE.put(value, new CachedAttachmentInfo(attachment.getUrl(), attachment.getFileName()));
-                builder.addOption(attachment.getFileName(), value.toString());
-                if (first) {
-                    builder.setDefaultValues(value.toString());
-                    first = false;
-                }
+            for (int i = 0; i < attachments.size(); i++) {
+                builder.addOption(attachments.get(i).getFileName(), Integer.toString(i));
             }
-            return builder.build();
+            return builder.setDefaultValues("0").build();
         });
     }
 
@@ -148,25 +139,26 @@ public final class UploadInteractions {
 
         }
 
-        NamedAttachmentProxy saveFileAttachment = null;
-
         ModalMapping save = event.getValue("save");
-        if (save != null) {
-            switch (save.getType()) {
-                case FILE_UPLOAD -> saveFileAttachment = save.getAsAttachmentList().get(0).getProxy();
-                case STRING_SELECT -> {
-                    UUID value = UUID.fromString(save.getAsStringList().get(0));
-                    CachedAttachmentInfo info = ATTACHMENT_CACHE.remove(value);
-                    if (info != null) {
-                        saveFileAttachment = new NamedAttachmentProxy(info.url(), info.fileName());
-                    }
-                }
-            }
+        if (save == null) {
+            event.reply("Please select a save file").setEphemeral(true).queue();
+            return;
         }
 
-        if (saveFileAttachment == null) {
-            event.reply("Please provide a save file").setEphemeral(true).queue();
-            return;
+        NamedAttachmentProxy attachment;
+        switch (save.getType()) {
+            case FILE_UPLOAD -> attachment = save.getAsAttachmentList().get(0).getProxy();
+            case STRING_SELECT -> {
+                attachment = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().get(0)));
+                if (attachment == null) {
+                    event.reply("Attachment context expired, please try again").queue();
+                    return;
+                }
+            }
+            default -> {
+                LOGGER.error("Unexpected save file component type: {}", save.getType());
+                return;
+            }
         }
 
         ModalMapping action = event.getValue("action");
@@ -179,13 +171,13 @@ public final class UploadInteractions {
         boolean load = actionString.startsWith("load");
         boolean loadCreative = actionString.equals("load-creative");
 
-        String file = saveFileAttachment.getUrl();
-        String saveName = SaveFileReader.saveNameOf(saveFileAttachment.getFileName());
+        String file = attachment.getUrl();
+        String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
 
         event.deferReply(isDashboard(event)).queue();
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
-        saveFileAttachment.download().thenAcceptAsync(downloadStream -> {
+        attachment.download().thenAcceptAsync(downloadStream -> {
 
             List<String> messageLines = Collections.synchronizedList(servers.stream()
                     .map(server -> "Uploading " + file + " to " + inlineServerDisplayName(server.getName()) + "...")

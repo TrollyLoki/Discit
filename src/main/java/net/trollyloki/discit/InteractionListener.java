@@ -44,11 +44,11 @@ public class InteractionListener extends ListenerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(InteractionListener.class);
 
     private static void setMDC(Interaction interaction) {
-        Guild guild = interaction.getGuild();
-        if (guild != null) {
-            MDC.put("guild", guild.getName());
-        }
         MDC.put("user", interaction.getUser().getName());
+
+        Guild guild = interaction.getGuild();
+        if (guild != null) MDC.put("guild", guild.getName());
+        else MDC.remove("guild");
     }
 
     public static final String

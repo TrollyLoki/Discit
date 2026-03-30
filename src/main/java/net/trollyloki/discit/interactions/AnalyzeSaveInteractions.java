@@ -50,6 +50,8 @@ public final class AnalyzeSaveInteractions {
 
         event.deferReply().queue();
 
+        LOGGER.info("Analyzing {} save file(s)", attachments.size());
+
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         @SuppressWarnings("unchecked") CompletableFuture<List<ContainerChildComponent>>[] futures = attachments.stream().map(
                 attachment -> attachment.getProxy().download().thenApplyAsync(downloadStream -> {

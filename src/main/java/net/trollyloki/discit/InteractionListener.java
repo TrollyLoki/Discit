@@ -154,6 +154,7 @@ public class InteractionListener extends ListenerAdapter {
     public void onDashboardUpdateButton(ButtonInteractionEvent event, String serverIdString) {
         // no permission required
 
+        LOGGER.info("Forcing server update");
         getGuildManager(event).updateServer(UUID.fromString(serverIdString));
 
         event.deferEdit().queue();

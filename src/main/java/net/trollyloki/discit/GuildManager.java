@@ -170,6 +170,8 @@ public class GuildManager {
         ServerUpdater updater = updaters.get(serverId);
         if (updater != null) {
             updater.update();
+        } else {
+            LOGGER.warn("Could not find updater for server {}", serverId);
         }
     }
 

@@ -2,6 +2,8 @@ package net.trollyloki.discit;
 
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.components.textinput.TextInput;
+import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
@@ -163,6 +165,11 @@ public final class InteractionUtils {
 
     public static void logActionWithServer(Interaction interaction, String action, @Nullable String serverName) {
         getGuildManager(interaction).logAction(interaction.getUser(), action + " " + inlineServerDisplayName(serverName));
+    }
+
+    public static TextInput.Builder serverNameInput(String customId) {
+        // servers seem to truncate names that are longer than 32 characters
+        return TextInput.create(customId, TextInputStyle.SHORT).setMaxLength(32);
     }
 
     public static StringSelectMenu.Builder serverSelectMenu(String customId, Map<UUID, Server> servers) {

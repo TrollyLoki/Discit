@@ -164,7 +164,7 @@ public final class AddInteractions {
             return;
 
         event.replyModal(Modal.create(buildId(CLAIM_MODAL_ID, serverIdString), "Claim Server").addComponents(
-                Label.of("Server Name", TextInput.of("name", TextInputStyle.SHORT)),
+                Label.of("Server Name", serverNameInput("name").build()),
                 Label.of("Admin Password", TextInput.of("password1", TextInputStyle.SHORT)),
                 Label.of("Repeat Admin Password", TextInput.of("password2", TextInputStyle.SHORT)),
                 Label.of("Authenticate", "Should authentication be obtained automatically?", Checkbox.of("authenticate", true)),

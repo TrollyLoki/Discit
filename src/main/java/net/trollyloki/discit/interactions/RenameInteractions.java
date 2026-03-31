@@ -1,8 +1,6 @@
 package net.trollyloki.discit.interactions;
 
 import net.dv8tion.jda.api.components.label.Label;
-import net.dv8tion.jda.api.components.textinput.TextInput;
-import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
@@ -14,10 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
-import static net.trollyloki.discit.InteractionUtils.getServerIfAdmin;
-import static net.trollyloki.discit.InteractionUtils.isDashboard;
-import static net.trollyloki.discit.InteractionUtils.logActionWithServer;
-import static net.trollyloki.discit.InteractionUtils.requestAsync;
+import static net.trollyloki.discit.InteractionUtils.*;
 
 @NullMarked
 public final class RenameInteractions {
@@ -36,9 +31,7 @@ public final class RenameInteractions {
             return;
 
         event.replyModal(Modal.create(buildId(RENAME_MODAL_ID, serverIdString), "Rename Server").addComponents(
-                Label.of("Server Name",
-                        TextInput.create("name", TextInputStyle.SHORT).setValue(server.getName()).build()
-                )
+                Label.of("Server Name", serverNameInput("name").setValue(server.getName()).build())
         ).build()).queue();
     }
 

@@ -236,6 +236,7 @@ public final class InteractionUtils {
     public static <T extends @Nullable Object> CompletableFuture<T> requestAsync(Server server, String actionString, Function<HttpsApi, T> action) {
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         return CompletableFuture.supplyAsync(() -> {
+            MDC.setContextMap(mdc);
             HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
             return action.apply(httpsApi);
         }).exceptionally(exception -> {
@@ -272,6 +273,7 @@ public final class InteractionUtils {
             if (saveHeader != null) {
                 return new SaveInfo(actualSaveName, saveHeader.sessionName(), saveHeader.saveTimestamp());
             } else {
+                LOGGER.warn("Couldn't find save header for save name \"{}\"", actualSaveName);
                 return new SaveInfo(actualSaveName, null, fallbackTimestamp);
             }
 

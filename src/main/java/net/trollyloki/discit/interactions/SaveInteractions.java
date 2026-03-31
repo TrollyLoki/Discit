@@ -65,10 +65,10 @@ public final class SaveInteractions {
     private static Modal createSaveModal(String customId, ModalTopLevelComponent serverComponent) {
         return Modal.create(customId, "Create Save").addComponents(
                 serverComponent,
-                //TODO: Limit length / check validity?
                 Label.of("Save Name", "Optional", TextInput.create("name", TextInputStyle.SHORT)
                         .setRequired(false)
                         .setPlaceholder("Session Name_DDMMYY-HHMMSS")
+                        .setMaxLength(100) // arbitrary
                         .build())
         ).build();
     }

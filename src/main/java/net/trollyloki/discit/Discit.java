@@ -54,6 +54,7 @@ public class Discit {
                 Commands.message(UPLOAD_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
                 Commands.slash(BACKUP_COMMAND_NAME, "Create and download a save from each server").setContexts(InteractionContextType.GUILD).addOptions(
                         new OptionData(OptionType.STRING, "name", "Backup file name", true)
+                                .setMaxLength(100) // arbitrary
                 ),
                 Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(
                         InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL

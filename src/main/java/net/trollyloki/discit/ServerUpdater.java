@@ -13,7 +13,6 @@ import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import net.trollyloki.jicsit.server.https.HttpsApi;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
-import net.trollyloki.jicsit.server.https.RequestException;
 import net.trollyloki.jicsit.server.https.ServerGameState;
 import net.trollyloki.jicsit.server.https.exception.ApiException;
 import net.trollyloki.jicsit.server.query.QueryApi;
@@ -60,7 +59,8 @@ public class ServerUpdater implements Closeable {
 
     private static final Duration
             QUERY_TIMEOUT = Duration.ofSeconds(5),
-            API_TIMEOUT = Duration.ofSeconds(3);
+            API_TIMEOUT = Duration.ofSeconds(5);
+    private static final long QUERY_RETRY_INTERVAL_NANOS = Duration.ofSeconds(5).toNanos();
 
     private final GuildManager guildManager;
     private final UUID serverId;
@@ -97,11 +97,14 @@ public class ServerUpdater implements Closeable {
 
     private @Nullable String lastName;
     private @Nullable ServerStatus lastServerStatus;
+    private @Nullable String lastErrorMessage;
     private short lastGameStateVersion;
     private boolean lastHasToken;
 
-    private @Nullable ServerGameState cachedGameState;
     private short cachedGameStateVersion;
+    private @Nullable Long lastQueryNanoTime;
+    private @Nullable ServerGameState cachedGameState;
+    private @Nullable String cachedErrorMessage;
 
     private @Nullable String messageId;
     private boolean update = false;
@@ -155,36 +158,46 @@ public class ServerUpdater implements Closeable {
                 name = server.getName();
             }
 
-            //TODO: Always retrying if we don't have an up-to-date cached game state can lead to HTTPS spam
-            boolean queryHttps = serverStatus.isHttpsApiAvailable() && (update || cachedGameState == null || cachedGameStateVersion != gameStateVersion);
-            String errorMessage = null;
-            if (queryHttps) {
+            if (serverStatus.isHttpsApiAvailable() && (update
+                    || cachedGameStateVersion != gameStateVersion
+                    || (cachedGameState == null && (lastQueryNanoTime == null || (System.nanoTime() - lastQueryNanoTime) >= QUERY_RETRY_INTERVAL_NANOS))
+            )) {
                 LOGGER.info("Querying HTTPS API of server \"{}\" for game state version {}", name, gameStateVersion);
+                cachedGameStateVersion = gameStateVersion;
+                lastQueryNanoTime = System.nanoTime();
+
+                cachedGameState = null;
                 try {
                     HttpsApi httpsApi = server.httpsApi(API_TIMEOUT);
                     if (httpsApi.getPrivilegeLevel() == PrivilegeLevel.NOT_AUTHENTICATED) {
                         httpsApi.passwordlessLogin(PrivilegeLevel.CLIENT);
                     }
                     cachedGameState = httpsApi.queryServerState();
-                    cachedGameStateVersion = gameStateVersion;
+                    cachedErrorMessage = null;
                 } catch (ApiException e) {
-                    errorMessage = "Unable to query game state: " + e.getMessage();
-                } catch (RequestException e) {
-                    errorMessage = "Failed to query game state";
+                    cachedErrorMessage = "Unable to query game state: " + e.getMessage();
+                } catch (Exception e) {
+                    cachedErrorMessage = "Failed to query game state";
                     LOGGER.warn("Failed to query game state of server \"{}\"", name, e);
                 }
             }
 
             boolean hasToken = server.hasToken();
-            if (update || !Objects.equals(name, lastName) || serverStatus != lastServerStatus || errorMessage != null || cachedGameStateVersion != lastGameStateVersion || hasToken != lastHasToken) {
+            if (update
+                    || !Objects.equals(name, lastName)
+                    || serverStatus != lastServerStatus
+                    || !Objects.equals(cachedErrorMessage, lastErrorMessage)
+                    || cachedGameStateVersion != lastGameStateVersion
+                    || hasToken != lastHasToken
+            ) {
                 LOGGER.info("Updating dashboard message for server \"{}\"", name);
 
-                Container container = createDashboardContainer(serverId.toString(), name, serverStatus, errorMessage, cachedGameState, hasToken);
-
+                Container container = createDashboardContainer(serverId.toString(), name, serverStatus, cachedErrorMessage, cachedGameState, hasToken);
                 updateDashboardMessage(container);
 
                 lastName = name;
                 lastServerStatus = serverStatus;
+                lastErrorMessage = cachedErrorMessage;
                 lastGameStateVersion = cachedGameStateVersion;
                 lastHasToken = hasToken;
 
@@ -232,16 +245,17 @@ public class ServerUpdater implements Closeable {
         components.add(TextDisplay.of("## " + serverDisplayName(name)));
         components.add(TextDisplay.of(status.toString()));
 
-        if (errorMessage != null || status == ServerStatus.PLAYING && gameState != null) {
+        if (status.isHttpsApiAvailable() && errorMessage != null) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
-            if (errorMessage != null) {
-                components.add(TextDisplay.of(errorMessage));
-            } else {
-                components.add(TextDisplay.of("### " + gameState.activeSessionName()));
-                components.add(TextDisplay.of("**Game Duration**\n" + formatDuration(gameState.totalGameDuration())));
-                components.add(TextDisplay.of("### Current Players\n" + gameState.connectedPlayerCount() + "/" + gameState.playerLimit()));
-                components.add(TextDisplay.of("### Average Tick Rate\n" + gameState.averageTickRate()));
-            }
+            components.add(TextDisplay.of(errorMessage));
+        }
+
+        if (status == ServerStatus.PLAYING && gameState != null) {
+            components.add(Separator.createDivider(Separator.Spacing.SMALL));
+            components.add(TextDisplay.of("### " + gameState.activeSessionName()));
+            components.add(TextDisplay.of("**Game Duration**\n" + formatDuration(gameState.totalGameDuration())));
+            components.add(TextDisplay.of("### Current Players\n" + gameState.connectedPlayerCount() + "/" + gameState.playerLimit()));
+            components.add(TextDisplay.of("### Average Tick Rate\n" + gameState.averageTickRate()));
         }
 
         components.add(Separator.createDivider(Separator.Spacing.SMALL));

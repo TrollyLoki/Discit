@@ -18,7 +18,7 @@ public class AttachmentCache {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AttachmentCache.class);
 
-    private static final long EXPIRATION_TIME = Duration.ofMinutes(60).toNanos();
+    private static final long EXPIRATION_TIME = Duration.ofMinutes(15).toNanos();
 
     private record AttachmentInfo(String url, String fileName) {
         AttachmentInfo(Message.Attachment attachment) {

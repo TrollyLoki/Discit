@@ -20,8 +20,7 @@ import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.interactions.AddInteractions.*;
-import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
-import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.onAdvancedGameSettingsButton;
+import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.*;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
@@ -116,6 +115,7 @@ public class InteractionListener extends ListenerAdapter {
             case RENAME_BUTTON_ID -> onRenameButton(event, id[1]);
             case SERVER_SETTINGS_BUTTON_ID -> onSettingsButton(event, id[1]);
             case AGS_BUTTON_ID -> onAdvancedGameSettingsButton(event, id[1]);
+            case AGS_ENABLE_BUTTON_ID -> onAdvancedGameSettingEnableButton(event, id[1], id[2]);
             default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
         }
     }
@@ -126,6 +126,7 @@ public class InteractionListener extends ListenerAdapter {
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
             case LIST_SELECT_ID -> onListSelect(event);
+            case AGS_VALUE_SELECT_ID -> onAdvancedGameSettingValueSelect(event, id[1], id[2]);
             default -> LOGGER.warn("Unknown string select ID {}", event.getComponentId());
         }
     }

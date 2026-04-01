@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
@@ -54,6 +55,10 @@ public final class InteractionUtils {
             RED_ACCENT = Color.getHSBColor(.000f, .75f, 1.00f),
             YELLOW_ACCENT = Color.getHSBColor(.125f, .75f, 1.00f),
             GREEN_ACCENT = Color.getHSBColor(.375f, .75f, 1.00f);
+
+    public static final Emoji
+            CHECKBOX_CHECKED_EMOJI = Emoji.fromUnicode("✅"),
+            CHECKBOX_EMPTY_EMOJI = Emoji.fromUnicode("🔳");
 
     public static @Nullable List<Message.Attachment> findMessageAttachments(MessageContextInteractionEvent event) {
         List<Message.Attachment> attachments = new ArrayList<>(event.getTarget().getAttachments());

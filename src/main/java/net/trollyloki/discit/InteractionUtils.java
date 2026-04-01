@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.trollyloki.jicsit.save.SaveHeader;
 import net.trollyloki.jicsit.save.Session;
+import net.trollyloki.jicsit.server.https.CommandResult;
 import net.trollyloki.jicsit.server.https.HttpsApi;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import net.trollyloki.jicsit.server.https.exception.ApiException;
@@ -186,6 +187,10 @@ public final class InteractionUtils {
     public static String generateToken(HttpsApi httpsApi) {
         String output = httpsApi.runCommand("server.GenerateAPIToken").outputLines()[0];
         return output.substring(output.indexOf(':') + 1).trim();
+    }
+
+    public static CommandResult invalidateTokens(HttpsApi httpsApi) {
+        return httpsApi.runCommand("server.InvalidateAPITokens");
     }
 
     public static boolean verifyAndSetToken(ModalInteractionEvent event, String serverIdString, String token, @Nullable String serverName) {

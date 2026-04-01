@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
+import net.trollyloki.discit.interactions.ChangePasswordInteractions;
 import net.trollyloki.jicsit.server.https.HttpsApi;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import net.trollyloki.jicsit.server.https.ServerGameState;
@@ -30,6 +31,7 @@ import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -45,6 +47,8 @@ import static net.trollyloki.discit.InteractionUtils.GREEN_ACCENT;
 import static net.trollyloki.discit.InteractionUtils.RED_ACCENT;
 import static net.trollyloki.discit.InteractionUtils.YELLOW_ACCENT;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
+import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
+import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ListInteractions.AUTHENTICATE_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_BUTTON_ID;
 import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_BUTTON_ID;
@@ -276,6 +280,11 @@ public class ServerUpdater implements Closeable {
                     Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options"),
                     Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings")
             ));
+            components.add(ActionRow.of(
+                    changePasswordButton(serverId, ChangePasswordInteractions.PasswordType.CLIENT),
+                    changePasswordButton(serverId, ChangePasswordInteractions.PasswordType.ADMIN),
+                    Button.danger(buildId(INVALIDATE_TOKENS_BUTTON_ID, serverId), "Invalidate Tokens")
+            ));
         } else {
             components.add(ActionRow.of(
                     updateButton,
@@ -288,6 +297,13 @@ public class ServerUpdater implements Closeable {
             case IDLE, LOADING -> YELLOW_ACCENT;
             case PLAYING -> GREEN_ACCENT;
         });
+    }
+
+    private static Button changePasswordButton(String serverId, ChangePasswordInteractions.PasswordType type) {
+        return Button.secondary(
+                buildId(CHANGE_PASSWORD_BUTTON_ID, serverId, type.name().toLowerCase(Locale.ROOT)),
+                "Change " + type
+        );
     }
 
 }

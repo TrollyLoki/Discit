@@ -25,6 +25,12 @@ import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.BackupInteractions.onBackupCommand;
+import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
+import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_MODAL_ID;
+import static net.trollyloki.discit.interactions.ChangePasswordInteractions.onChangePasswordButton;
+import static net.trollyloki.discit.interactions.ChangePasswordInteractions.onChangePasswordModal;
+import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
+import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.onInvalidateTokensButton;
 import static net.trollyloki.discit.interactions.ListInteractions.*;
 import static net.trollyloki.discit.interactions.ReloadInteractions.*;
 import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_BUTTON_ID;
@@ -116,6 +122,8 @@ public class InteractionListener extends ListenerAdapter {
             case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionButton(event, id[1], id[2], id[3]);
             case AGS_BUTTON_ID -> onAdvancedGameSettingsButton(event, id[1]);
             case AGS_ENABLE_BUTTON_ID -> onAdvancedGameSettingEnableButton(event, id[1], id[2]);
+            case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);
+            case INVALIDATE_TOKENS_BUTTON_ID -> onInvalidateTokensButton(event, id[1]);
             default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
         }
     }
@@ -144,6 +152,7 @@ public class InteractionListener extends ListenerAdapter {
             case SAVE_MODAL_ID -> onSaveModal(event, id.length > 1 ? id[1] : null);
             case UPLOAD_MODAL_ID -> onUploadModal(event, id.length > 1 ? id[1] : null);
             case RENAME_MODAL_ID -> onRenameModal(event, id[1]);
+            case CHANGE_PASSWORD_MODAL_ID -> onChangePasswordModal(event, id[1], id[2]);
             default -> LOGGER.warn("Unknown modal ID {}", event.getModalId());
         }
     }

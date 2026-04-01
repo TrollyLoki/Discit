@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.TimeFormat;
@@ -272,17 +273,17 @@ public class ServerUpdater implements Closeable {
             components.add(ActionRow.of(
                     updateButton,
                     Button.primary(buildId(RELOAD_BUTTON_ID, serverId), "Reload Session"),
-                    Button.secondary(buildId(SAVE_BUTTON_ID, serverId), "Download Save"),
-                    Button.secondary(buildId(UPLOAD_BUTTON_ID, serverId), "Upload Save")
+                    Button.secondary(buildId(SAVE_BUTTON_ID, serverId), "Download Save").withEmoji(Emoji.fromUnicode("💾")),
+                    Button.secondary(buildId(UPLOAD_BUTTON_ID, serverId), "Upload Save").withEmoji(Emoji.fromUnicode("📡"))
             ));
             components.add(ActionRow.of(
-                    Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server"),
-                    Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options"),
-                    Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings")
+                    Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server").withEmoji(Emoji.fromUnicode("🪧")),
+                    Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options").withEmoji(Emoji.fromUnicode("⚙️")),
+                    Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings").withEmoji(Emoji.fromUnicode("✏️"))
             ));
             components.add(ActionRow.of(
-                    changePasswordButton(serverId, ChangePasswordInteractions.PasswordType.CLIENT),
-                    changePasswordButton(serverId, ChangePasswordInteractions.PasswordType.ADMIN),
+                    changePasswordButton(serverId, ChangePasswordInteractions.PasswordType.CLIENT).withEmoji(Emoji.fromUnicode("🔓")),
+                    changePasswordButton(serverId, ChangePasswordInteractions.PasswordType.ADMIN).withEmoji(Emoji.fromUnicode("🔐")),
                     Button.danger(buildId(INVALIDATE_TOKENS_BUTTON_ID, serverId), "Invalidate Tokens")
             ));
         } else {

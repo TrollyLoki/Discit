@@ -32,8 +32,7 @@ import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_MODAL
 import static net.trollyloki.discit.interactions.RenameInteractions.onRenameButton;
 import static net.trollyloki.discit.interactions.RenameInteractions.onRenameModal;
 import static net.trollyloki.discit.interactions.SaveInteractions.*;
-import static net.trollyloki.discit.interactions.ServerSettingsInteractions.SERVER_SETTINGS_BUTTON_ID;
-import static net.trollyloki.discit.interactions.ServerSettingsInteractions.onSettingsButton;
+import static net.trollyloki.discit.interactions.ServerOptionsInteractions.*;
 import static net.trollyloki.discit.interactions.SettingsInteractions.*;
 import static net.trollyloki.discit.interactions.UploadInteractions.*;
 
@@ -113,7 +112,8 @@ public class InteractionListener extends ListenerAdapter {
             case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);
             case UPLOAD_BUTTON_ID -> onUploadButton(event, id[1]);
             case RENAME_BUTTON_ID -> onRenameButton(event, id[1]);
-            case SERVER_SETTINGS_BUTTON_ID -> onSettingsButton(event, id[1]);
+            case SERVER_OPTIONS_BUTTON_ID -> onServerOptionsButton(event, id[1]);
+            case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionButton(event, id[1], id[2], id[3]);
             case AGS_BUTTON_ID -> onAdvancedGameSettingsButton(event, id[1]);
             case AGS_ENABLE_BUTTON_ID -> onAdvancedGameSettingEnableButton(event, id[1], id[2]);
             default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
@@ -126,6 +126,8 @@ public class InteractionListener extends ListenerAdapter {
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
             case LIST_SELECT_ID -> onListSelect(event);
+            case AUTOLOAD_SESSION_NAME_SELECT_ID -> onSetAutoloadSessionNameSelect(event, id[1]);
+            case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionSelect(event, id[1], id[2]);
             case AGS_VALUE_SELECT_ID -> onAdvancedGameSettingValueSelect(event, id[1], id[2]);
             default -> LOGGER.warn("Unknown string select ID {}", event.getComponentId());
         }

@@ -49,7 +49,7 @@ import static net.trollyloki.discit.interactions.ListInteractions.AUTHENTICATE_B
 import static net.trollyloki.discit.interactions.ReloadInteractions.RELOAD_BUTTON_ID;
 import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_BUTTON_ID;
 import static net.trollyloki.discit.interactions.SaveInteractions.SAVE_BUTTON_ID;
-import static net.trollyloki.discit.interactions.ServerSettingsInteractions.SERVER_SETTINGS_BUTTON_ID;
+import static net.trollyloki.discit.interactions.ServerOptionsInteractions.SERVER_OPTIONS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.UploadInteractions.UPLOAD_BUTTON_ID;
 
 @NullMarked
@@ -273,7 +273,7 @@ public class ServerUpdater implements Closeable {
             ));
             components.add(ActionRow.of(
                     Button.secondary(buildId(RENAME_BUTTON_ID, serverId), "Rename Server"),
-                    Button.secondary(buildId(SERVER_SETTINGS_BUTTON_ID, serverId), "Server Settings"),
+                    Button.secondary(buildId(SERVER_OPTIONS_BUTTON_ID, serverId), "Server Options"),
                     Button.secondary(buildId(AGS_BUTTON_ID, serverId), "Advanced Game Settings")
             ));
         } else {

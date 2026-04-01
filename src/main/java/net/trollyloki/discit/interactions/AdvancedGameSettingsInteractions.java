@@ -70,7 +70,8 @@ public final class AdvancedGameSettingsInteractions {
     private static StringSelectMenu phaseSelectMenu(String serverIdString, AdvancedGameSettings ags) {
         int current = Integer.parseInt(ags.settings().get(AdvancedGameSettings.SET_GAME_PHASE));
 
-        StringSelectMenu.Builder selectMenu = StringSelectMenu.create(buildId(AGS_VALUE_SELECT_ID, serverIdString, AdvancedGameSettings.SET_GAME_PHASE));
+        String customId = buildId(AGS_VALUE_SELECT_ID, serverIdString, AdvancedGameSettings.SET_GAME_PHASE);
+        StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
         for (int i = current; i <= 7; i++) {
             selectMenu.addOption(getPhaseName(i), Integer.toString(i));
         }

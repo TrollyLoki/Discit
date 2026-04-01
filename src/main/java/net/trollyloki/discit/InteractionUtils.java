@@ -224,7 +224,10 @@ public final class InteractionUtils {
         }
 
         // Save token
-        getGuildManager(event).setServerToken(UUID.fromString(serverIdString), token);
+        if (!getGuildManager(event).setServerToken(UUID.fromString(serverIdString), token)) {
+            event.getHook().sendMessage("Failed to save token").setEphemeral(true).queue();
+            return false;
+        }
 
         event.getHook().sendMessage("Authentication successful").setEphemeral(true).queue();
         logActionWithServer(event, "added an authentication token for", serverName);

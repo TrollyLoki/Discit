@@ -146,7 +146,7 @@ public class ServerUpdater implements Closeable {
 
                 // Update name if it changed
                 if (!serverState.name().equals(server.getName())) {
-                    guildManager.setServerName(serverId, serverState.name());
+                    guildManager.updateServerName(serverId, serverState.name());
                 }
 
                 serverStatus = serverState.status();
@@ -235,7 +235,7 @@ public class ServerUpdater implements Closeable {
                     .useComponentsV2().complete();
 
             messageId = message.getId();
-            guildManager.setDashboardMessageId(serverId, messageId);
+            guildManager.updateDashboardMessageId(serverId, messageId);
         }
     }
 

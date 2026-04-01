@@ -175,23 +175,38 @@ public class GuildManager {
         }
     }
 
-    public void setServerName(UUID serverId, @Nullable String name) {
-        data.getServers().get(serverId).setName(name);
-        save();
+    public void updateServerName(UUID serverId, @Nullable String name) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            server.setName(name);
+            save();
+        }
     }
 
-    public void setServerToken(UUID serverId, @Nullable String token) {
-        data.getServers().get(serverId).setToken(token);
-        save();
+    public boolean setServerToken(UUID serverId, @Nullable String token) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            server.setToken(token);
+            save();
+            return true;
+        }
+        return false;
     }
 
     public @Nullable String getDashboardMessageId(UUID serverId) {
-        return data.getServers().get(serverId).getDashboardMessageId();
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            return server.getDashboardMessageId();
+        }
+        return null;
     }
 
-    public void setDashboardMessageId(UUID serverId, @Nullable String messageId) {
-        data.getServers().get(serverId).setDashboardMessageId(messageId);
-        save();
+    public void updateDashboardMessageId(UUID serverId, @Nullable String messageId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            server.setDashboardMessageId(messageId);
+            save();
+        }
     }
 
 }

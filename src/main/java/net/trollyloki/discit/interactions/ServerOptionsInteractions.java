@@ -18,6 +18,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +48,14 @@ public final class ServerOptionsInteractions {
             selectMenu.addOption("null", "null").setDisabled(true);
             selectMenu.setPlaceholder("Server has no saves");
         } else {
+            int count = 0;
             for (Session session : sessions.sessions()) {
+                if (count == StringSelectMenu.OPTIONS_MAX_AMOUNT) {
+                    LOGGER.warn("Truncated session name select options from {} to {}", sessions.sessions().size(), count);
+                    break;
+                }
                 selectMenu.addOption(session.sessionName(), session.sessionName());
+                count++;
             }
             selectMenu.setPlaceholder("Select a session name");
         }
@@ -134,7 +141,7 @@ public final class ServerOptionsInteractions {
         boolean currentAdded = current == 0;
         // Discord only allows a maximum of 25 options, and we need one for "Off" and possibly one for the current value
         int seconds = 5 * 60;
-        for (int i = 0; i < 23; i++) {
+        for (int i = 2; i < StringSelectMenu.OPTIONS_MAX_AMOUNT; i++) {
 
             // Insert the current value where it should be if necessary
             if (!currentAdded) {
@@ -176,8 +183,8 @@ public final class ServerOptionsInteractions {
         StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
 
         boolean currentAdded = false;
+        // An option for each hour plus possibly one for the current value fits perfectly into the 25 option limit
         for (int i = 1; i <= 24; i++) {
-            // Options for each hour
             int minutes = 60 * i;
 
             // Insert the current value where it should be if necessary
@@ -251,8 +258,10 @@ public final class ServerOptionsInteractions {
 
         event.deferReply(true).queue();
 
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "get server options for", OptionsAndSessions::get).thenAcceptAsync(optionsAndSessions -> {
 
+            MDC.setContextMap(mdc);
             event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsAndSessions))
                     .useComponentsV2().queue();
 
@@ -300,6 +309,7 @@ public final class ServerOptionsInteractions {
         Map<String, String> options = Map.of(key, value);
         LOGGER.info("Applying server options {} to server \"{}\"", options, server.getName());
 
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "apply server options to", httpsApi -> {
             httpsApi.applyServerOptions(options);
             return OptionsAndSessions.get(httpsApi);
@@ -315,6 +325,7 @@ public final class ServerOptionsInteractions {
 
             logActionWithServer(interaction, "set " + getOptionName(key) + " to " + formattedValue + " for", server.getName());
 
+            MDC.setContextMap(mdc);
             interaction.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsAndSessions))
                     .useComponentsV2().queue();
 

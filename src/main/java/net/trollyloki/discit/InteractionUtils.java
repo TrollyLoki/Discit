@@ -180,7 +180,17 @@ public final class InteractionUtils {
 
     public static StringSelectMenu.Builder serverSelectMenu(String customId, Map<UUID, Server> servers) {
         StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
-        servers.forEach((id, server) -> builder.addOption(serverDisplayName(server.getName()), id.toString()));
+
+        int count = 0;
+        for (Map.Entry<UUID, Server> entry : servers.entrySet()) {
+            if (count == StringSelectMenu.OPTIONS_MAX_AMOUNT) {
+                LOGGER.warn("Truncated server select options from {} to {}", servers.size(), count);
+                break;
+            }
+            builder.addOption(serverDisplayName(entry.getValue().getName()), entry.getKey().toString());
+            count++;
+        }
+
         return builder;
     }
 

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -85,7 +86,33 @@ public final class AnalyzeSaveInteractions {
         CompletableFuture.allOf(futures).thenRunAsync(() -> {
             try {
                 List<Container> containers = Arrays.stream(futures).map(CompletableFuture::join).map(Container::of).toList();
-                event.getHook().editOriginalComponents(containers).useComponentsV2().queue();
+
+                List<Container> messageContainers = new ArrayList<>(containers.size());
+                int totalSize = 0;
+                for (Container container : containers) {
+                    // The container itself and each of its child components count towards the size
+                    // (since we are only using text displays and separators here there will be no additional nesting)
+                    int size = 1 + container.getComponents().size();
+                    if (size > Message.MAX_COMPONENT_COUNT_IN_COMPONENT_TREE) {
+                        throw new UnsupportedOperationException("Container too large to send in a message ("
+                                + size + " > " + Message.MAX_COMPONENT_COUNT_IN_COMPONENT_TREE + ")");
+                    }
+
+                    if (totalSize + size > Message.MAX_COMPONENT_COUNT_IN_COMPONENT_TREE) {
+                        // Send the current message and start a new one for this container
+                        event.getHook().sendMessageComponents(messageContainers).useComponentsV2().queue();
+                        messageContainers = new ArrayList<>();
+                        totalSize = 0;
+                    }
+
+                    messageContainers.add(container);
+                    totalSize += size;
+                }
+                // Send any remaining containers
+                if (!messageContainers.isEmpty()) {
+                    event.getHook().sendMessageComponents(messageContainers).useComponentsV2().queue();
+                }
+
             } catch (Exception e) {
                 MDC.setContextMap(mdc);
                 LOGGER.error("Failed to update reply", e);
@@ -97,50 +124,95 @@ public final class AnalyzeSaveInteractions {
         return SaveFileReader.readInfo(SaveFileReader.saveNameOf(filename), data);
     }
 
-    private static List<ContainerChildComponent> zipFileComponents(String filename, ZipInputStream zipStream) throws IOException {
-        List<ContainerChildComponent> components = new ArrayList<>();
-        components.add(TextDisplay.of("## " + filename));
+    private record SaveFileEntry(String name, Status status) implements Comparable<SaveFileEntry> {
+        private enum Status {
+            NA, INVALID, VALID
+        }
+
+        @Override
+        public int compareTo(SaveFileEntry other) {
+            return status.compareTo(other.status);
+        }
+
+        public TextDisplay toTextDisplay() {
+            return TextDisplay.ofFormat("%s `%s` %s",
+                    switch (status) {
+                        case NA -> ":x:";
+                        case INVALID -> ":warning:";
+                        case VALID -> ":white_check_mark:";
+                    },
+                    name,
+                    switch (status) {
+                        case NA -> "is not a valid save file";
+                        case INVALID -> "has an invalid checksum";
+                        case VALID -> "has a valid checksum";
+                    }
+            );
+        }
+    }
+
+    private static List<TextDisplay> zipFileComponents(String filename, ZipInputStream zipStream) throws IOException {
+        List<SaveFileEntry> entries = new ArrayList<>();
 
         ZipEntry zipEntry;
         while ((zipEntry = zipStream.getNextEntry()) != null) {
             if (zipEntry.isDirectory()) continue;
 
-            String emoji;
-            String message;
+            SaveFileEntry.Status status;
             try {
                 SaveFileInfo info = readSaveFileInfo(zipEntry.getName(), zipStream);
-                if (info.header().isEdited()) {
-                    emoji = ":warning:";
-                    message = "has an invalid checksum";
-                } else {
-                    emoji = ":white_check_mark:";
-                    message = "has a valid checksum";
-                }
+                status = info.header().isEdited() ? SaveFileEntry.Status.INVALID : SaveFileEntry.Status.VALID;
             } catch (IOException e) {
-                emoji = ":x:";
-                message = "is not a valid save file";
                 LOGGER.warn("Failed to read save file \"{}\" within \"{}\"", zipEntry.getName(), filename, e);
+                status = SaveFileEntry.Status.NA;
             }
-            components.add(TextDisplay.ofFormat("%s `%s` %s", emoji, zipEntry.getName(), message));
+            entries.add(new SaveFileEntry(zipEntry.getName(), status));
 
             zipStream.closeEntry();
         }
 
-        if (components.size() == 1) { // no entries were processed
-            components.add(TextDisplay.of("*empty*"));
+        TextDisplay header = TextDisplay.of("## " + filename);
+
+        if (entries.isEmpty()) {
+            return List.of(header, TextDisplay.of("*empty*"));
         }
+
+        entries.sort(null); // sort by status, "worst" first
+
+        // Don't forget to include the outer container and header text display
+        if (entries.size() + 2 <= Message.MAX_COMPONENT_COUNT_IN_COMPONENT_TREE) {
+            return Stream.concat(Stream.of(header), entries.stream().map(SaveFileEntry::toTextDisplay)).toList();
+        }
+
+        // Leave room for the outer container, header text display, and remaining summary line
+        int includedCount = Message.MAX_COMPONENT_COUNT_IN_COMPONENT_TREE - 3;
+        List<TextDisplay> components = new ArrayList<>(includedCount + 2);
+
+        components.add(header);
+
+        for (int i = 0; i < includedCount; i++) {
+            components.add(entries.get(i).toTextDisplay());
+        }
+
+        int remainingCount = entries.size() - includedCount;
+        components.add(TextDisplay.ofFormat("*and %,d more%s*", remainingCount, switch (entries.get(includedCount).status) {
+            // All remaining entries will be no "worse" than the very first remaining entry due to sorting
+            case NA -> "";
+            case INVALID -> " save files";
+            case VALID -> " save files with valid checksums";
+        }));
+
         return components;
     }
 
     private static List<ContainerChildComponent> saveFileInfoComponents(SaveFileInfo info) {
         List<ContainerChildComponent> components = new ArrayList<>();
-        components.add(TextDisplay.of("## " + info.header().saveName()));
 
-        String saved = "Created " + TimeFormat.DEFAULT.format(info.header().saveTimestamp());
+        String header = "## " + info.header().saveName() + "\nCreated " + TimeFormat.DEFAULT.format(info.header().saveTimestamp());
         if (info.originalSaveName() != null) {
-            saved += " as " + info.originalSaveName();
+            header += " as " + info.originalSaveName();
         }
-        components.add(TextDisplay.of(saved));
+        components.add(TextDisplay.of(header));
 
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
         components.add(TextDisplay.of("### " + info.header().sessionName()));

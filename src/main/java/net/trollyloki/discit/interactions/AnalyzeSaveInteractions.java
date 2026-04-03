@@ -72,7 +72,7 @@ public final class AnalyzeSaveInteractions {
                             return saveFileInfoComponents(readSaveFileInfo(attachment.getFileName(), downloadStream));
                         } catch (Exception e) {
                             LOGGER.warn("Failed to read save file \"{}\"", attachment.getFileName(), e);
-                            return Collections.singletonList(TextDisplay.of(attachment.getUrl() + " is not a valid save file"));
+                            return Collections.singletonList(TextDisplay.of(attachment.getUrl() + " is not a save file"));
                         }
 
                     }
@@ -124,30 +124,45 @@ public final class AnalyzeSaveInteractions {
         return SaveFileReader.readInfo(SaveFileReader.saveNameOf(filename), data);
     }
 
-    private record SaveFileEntry(String name, Status status) implements Comparable<SaveFileEntry> {
-        private enum Status {
-            NA, INVALID, VALID
+    private enum SaveFileStatus {
+        NONE(":x:"),
+        INVALID(":warning:"),
+        UNKNOWN(":grey_question:"),
+        VALID(":white_check_mark:");
+
+        private final String emoji;
+
+        SaveFileStatus(String emoji) {
+            this.emoji = emoji;
         }
 
+        public String getEmoji() {
+            return emoji;
+        }
+
+        public static SaveFileStatus of(SaveFileInfo saveFileInfo) {
+            if (saveFileInfo.checksum() == null)
+                return SaveFileStatus.UNKNOWN;
+            else if (saveFileInfo.header().isEdited())
+                return SaveFileStatus.INVALID;
+            else
+                return SaveFileStatus.VALID;
+        }
+    }
+
+    private record SaveFileEntry(String name, SaveFileStatus status) implements Comparable<SaveFileEntry> {
         @Override
         public int compareTo(SaveFileEntry other) {
             return status.compareTo(other.status);
         }
 
         public TextDisplay toTextDisplay() {
-            return TextDisplay.ofFormat("%s `%s` %s",
-                    switch (status) {
-                        case NA -> ":x:";
-                        case INVALID -> ":warning:";
-                        case VALID -> ":white_check_mark:";
-                    },
-                    name,
-                    switch (status) {
-                        case NA -> "is not a valid save file";
-                        case INVALID -> "has an invalid checksum";
-                        case VALID -> "has a valid checksum";
-                    }
-            );
+            return TextDisplay.ofFormat("%s `%s` %s", status.getEmoji(), name, switch (status) {
+                case NONE -> "is not a save file";
+                case UNKNOWN -> "has an unknown checksum";
+                case INVALID -> "has an invalid checksum";
+                case VALID -> "has a valid checksum";
+            });
         }
     }
 
@@ -158,13 +173,13 @@ public final class AnalyzeSaveInteractions {
         while ((zipEntry = zipStream.getNextEntry()) != null) {
             if (zipEntry.isDirectory()) continue;
 
-            SaveFileEntry.Status status;
+            SaveFileStatus status;
             try {
                 SaveFileInfo info = readSaveFileInfo(zipEntry.getName(), zipStream);
-                status = info.header().isEdited() ? SaveFileEntry.Status.INVALID : SaveFileEntry.Status.VALID;
+                status = SaveFileStatus.of(info);
             } catch (IOException e) {
                 LOGGER.warn("Failed to read save file \"{}\" within \"{}\"", zipEntry.getName(), filename, e);
-                status = SaveFileEntry.Status.NA;
+                status = SaveFileStatus.NONE;
             }
             entries.add(new SaveFileEntry(zipEntry.getName(), status));
 
@@ -197,8 +212,8 @@ public final class AnalyzeSaveInteractions {
         int remainingCount = entries.size() - includedCount;
         components.add(TextDisplay.ofFormat("*and %,d more%s*", remainingCount, switch (entries.get(includedCount).status) {
             // All remaining entries will be no "worse" than the very first remaining entry due to sorting
-            case NA -> "";
-            case INVALID -> " save files";
+            case NONE -> "";
+            case INVALID, UNKNOWN -> " save files";
             case VALID -> " save files with valid checksums";
         }));
 
@@ -230,7 +245,12 @@ public final class AnalyzeSaveInteractions {
         }
 
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
-        components.add(TextDisplay.of("### " + (info.header().isEdited() ? ":warning: Invalid checksum" : ":white_check_mark: Valid checksum")));
+        SaveFileStatus status = SaveFileStatus.of(info);
+        components.add(TextDisplay.of("### " + status.getEmoji() + switch (status) {
+            case VALID -> " Valid checksum";
+            case INVALID -> " Invalid checksum";
+            default -> " Unknown checksum";
+        }));
 
         return components;
     }

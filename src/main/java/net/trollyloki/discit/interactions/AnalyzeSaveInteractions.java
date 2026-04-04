@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.components.container.ContainerChildComponent;
 import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import net.trollyloki.jicsit.save.Mod;
@@ -125,18 +126,18 @@ public final class AnalyzeSaveInteractions {
     }
 
     private enum SaveFileStatus {
-        NONE(":x:"),
-        INVALID(":warning:"),
-        UNKNOWN(":grey_question:"),
-        VALID(":white_check_mark:");
+        NONE("❌"),
+        INVALID("⚠️"),
+        UNKNOWN("❔"),
+        VALID("✅");
 
-        private final String emoji;
+        private final Emoji emoji;
 
-        SaveFileStatus(String emoji) {
-            this.emoji = emoji;
+        SaveFileStatus(String emojiCode) {
+            this.emoji = Emoji.fromUnicode(emojiCode);
         }
 
-        public String getEmoji() {
+        public Emoji getEmoji() {
             return emoji;
         }
 
@@ -157,7 +158,7 @@ public final class AnalyzeSaveInteractions {
         }
 
         public TextDisplay toTextDisplay() {
-            return TextDisplay.ofFormat("%s `%s` %s", status.getEmoji(), name, switch (status) {
+            return TextDisplay.ofFormat("%s `%s` %s", status.getEmoji().getFormatted(), name, switch (status) {
                 case NONE -> "is not a save file";
                 case UNKNOWN -> "has an unknown checksum";
                 case INVALID -> "has an invalid checksum";
@@ -246,7 +247,7 @@ public final class AnalyzeSaveInteractions {
 
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
         SaveFileStatus status = SaveFileStatus.of(info);
-        components.add(TextDisplay.of("### " + status.getEmoji() + switch (status) {
+        components.add(TextDisplay.of("### " + status.getEmoji().getFormatted() + switch (status) {
             case VALID -> " Valid checksum";
             case INVALID -> " Invalid checksum";
             default -> " Unknown checksum";

@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
@@ -34,6 +35,8 @@ public final class AdvancedGameSettingsInteractions {
             AGS_BUTTON_ID = "ags",
             AGS_ENABLE_BUTTON_ID = "ags-enable",
             AGS_VALUE_SELECT_ID = "ags-value";
+
+    private static final Emoji WARNING_EMOJI = Emoji.fromUnicode("⚠️");
 
     private static String getSettingName(String key) {
         return switch (key) {
@@ -94,7 +97,7 @@ public final class AdvancedGameSettingsInteractions {
     private static Container settingsContainer(String serverIdString, @Nullable String serverName, AdvancedGameSettings ags) {
         String header = "# Advanced Game Settings\n## " + serverDisplayName(serverName);
         if (!ags.enabled()) {
-            header += "\n:warning: Advanced Game Settings are not currently enabled. Interacting with any of the below controls will automatically enable them for the current session.";
+            header += "\n" + WARNING_EMOJI.getFormatted() + " Advanced Game Settings are not currently enabled. Interacting with any of the below controls will automatically enable them for the current session.";
         }
         return Container.of(
                 TextDisplay.of(header),
@@ -116,7 +119,7 @@ public final class AdvancedGameSettingsInteractions {
                 ActionRow.of(
                         booleanButton(serverIdString, ags, AdvancedGameSettings.DISABLE_ARACHNID_CREATURES)
                 ),
-                TextDisplay.of("### Progression\n:warning: These settings are **irreversible** unless a previous save is loaded."),
+                TextDisplay.of("### Progression\n" + WARNING_EMOJI.getFormatted() + " These settings are **irreversible** unless a previous save is loaded."),
                 ActionRow.of(phaseSelectMenu(serverIdString, ags)),
                 ActionRow.of(
                         booleanButton(serverIdString, ags, AdvancedGameSettings.UNLOCK_ALL_TIERS),

@@ -12,6 +12,7 @@ import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.Session;
 import net.trollyloki.jicsit.server.https.HttpsApi;
+import net.trollyloki.jicsit.server.https.ServerGameState;
 import net.trollyloki.jicsit.server.https.ServerOptions;
 import net.trollyloki.jicsit.server.https.ServerSessions;
 import org.jspecify.annotations.NullMarked;
@@ -40,24 +41,34 @@ public final class ServerOptionsInteractions {
             SET_SERVER_OPTION_COMPONENT_ID = "set-server-option",
             AUTOLOAD_SESSION_NAME_SELECT_ID = "autoload-session-name";
 
-    private static StringSelectMenu autoloadSessionNameSelectMenu(String serverIdString, ServerSessions sessions) {
+    private static StringSelectMenu autoloadSessionNameSelectMenu(String serverIdString, ServerSessions sessions, ServerGameState gameState) {
         String customId = buildId(AUTOLOAD_SESSION_NAME_SELECT_ID, serverIdString);
         StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
 
-        if (sessions.sessions().isEmpty()) {
+        List<String> sessionNames = new ArrayList<>(sessions.sessions().size() + 1);
+        for (Session session : sessions.sessions()) {
+            sessionNames.add(session.sessionName());
+        }
+
+        String current = gameState.autoLoadSessionName();
+        if (!current.isEmpty() && !sessionNames.contains(current)) {
+            sessionNames.add(0, current);
+        }
+
+        if (sessionNames.isEmpty()) {
             selectMenu.addOption("null", "null").setDisabled(true);
-            selectMenu.setPlaceholder("Server has no saves");
+            selectMenu.setPlaceholder("Server has no sessions");
         } else {
             int count = 0;
-            for (Session session : sessions.sessions()) {
+            for (String sessionName : sessionNames) {
                 if (count == StringSelectMenu.OPTIONS_MAX_AMOUNT) {
-                    LOGGER.warn("Truncated session name select options from {} to {}", sessions.sessions().size(), count);
+                    LOGGER.warn("Truncated session name select options from {} to {}", sessionNames.size(), count);
                     break;
                 }
-                selectMenu.addOption(session.sessionName(), session.sessionName());
+                selectMenu.addOption(sessionName, sessionName);
                 count++;
             }
-            selectMenu.setPlaceholder("Select a session name");
+            selectMenu.setPlaceholder("Select a session").setDefaultValues(current);
         }
 
         return selectMenu.build();
@@ -220,34 +231,34 @@ public final class ServerOptionsInteractions {
         }
     }
 
-    private record OptionsAndSessions(ServerOptions options, ServerSessions sessions) {
-        static OptionsAndSessions get(HttpsApi httpsApi) {
-            return new OptionsAndSessions(httpsApi.getServerOptions(), httpsApi.enumerateSessions());
+    private record OptionsInfo(ServerOptions options, ServerSessions sessions, ServerGameState gameState) {
+        static OptionsInfo get(HttpsApi httpsApi) {
+            return new OptionsInfo(httpsApi.getServerOptions(), httpsApi.enumerateSessions(), httpsApi.queryServerState());
         }
     }
 
-    private static Container optionsContainer(String serverIdString, @Nullable String serverName, OptionsAndSessions optionsAndSessions) {
+    private static Container optionsContainer(String serverIdString, @Nullable String serverName, OptionsInfo optionsInfo) {
         return Container.of(
                 TextDisplay.of("# Server Options\n## " + serverDisplayName(serverName)),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 TextDisplay.of("### Dedicated Server"),
                 TextDisplay.of(AUTOLOAD_SESSION_NAME),
-                ActionRow.of(autoloadSessionNameSelectMenu(serverIdString, optionsAndSessions.sessions)),
+                ActionRow.of(autoloadSessionNameSelectMenu(serverIdString, optionsInfo.sessions, optionsInfo.gameState)),
                 ActionRow.of(
-                        booleanButton(serverIdString, optionsAndSessions.options, ServerOptions.AUTO_PAUSE),
-                        booleanButton(serverIdString, optionsAndSessions.options, ServerOptions.AUTO_SAVE_ON_DISCONNECT)
+                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.AUTO_PAUSE),
+                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.AUTO_SAVE_ON_DISCONNECT)
                 ),
                 TextDisplay.of("### Gameplay"),
                 TextDisplay.of(getOptionName(ServerOptions.AUTOSAVE_INTERVAL)),
-                ActionRow.of(autosaveIntervalSelectMenu(serverIdString, optionsAndSessions.options)),
+                ActionRow.of(autosaveIntervalSelectMenu(serverIdString, optionsInfo.options)),
                 TextDisplay.of(getOptionName(ServerOptions.SERVER_RESTART_SCHEDULE)),
-                ActionRow.of(restartScheduleSelectMenu(serverIdString, optionsAndSessions.options)),
+                ActionRow.of(restartScheduleSelectMenu(serverIdString, optionsInfo.options)),
                 ActionRow.of(
-                        booleanButton(serverIdString, optionsAndSessions.options, ServerOptions.DISABLE_SEASONAL_EVENTS),
-                        booleanButton(serverIdString, optionsAndSessions.options, ServerOptions.SEND_GAMEPLAY_DATA)
+                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.DISABLE_SEASONAL_EVENTS),
+                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_GAMEPLAY_DATA)
                 ),
                 TextDisplay.of(getOptionName(ServerOptions.NETWORK_QUALITY)),
-                ActionRow.of(networkQualitySelectMenu(serverIdString, optionsAndSessions.options))
+                ActionRow.of(networkQualitySelectMenu(serverIdString, optionsInfo.options))
         );
     }
 
@@ -259,10 +270,10 @@ public final class ServerOptionsInteractions {
         event.deferReply(true).queue();
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
-        requestAsync(server, "get server options for", OptionsAndSessions::get).thenAcceptAsync(optionsAndSessions -> {
+        requestAsync(server, "get server options for", OptionsInfo::get).thenAcceptAsync(optionsInfo -> {
 
             MDC.setContextMap(mdc);
-            event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsAndSessions))
+            event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
                     .useComponentsV2().queue();
 
         }).exceptionallyAsync(throwable -> {
@@ -281,10 +292,17 @@ public final class ServerOptionsInteractions {
         String autoloadSessionName = event.getValues().get(0);
         LOGGER.info("Setting auto-load session name for server \"{}\" to \"{}\"", server.getName(), autoloadSessionName);
 
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "set auto-load session name for", httpsApi -> {
             httpsApi.setAutoLoadSessionName(autoloadSessionName);
-        }).thenAcceptAsync(r -> {
+            return OptionsInfo.get(httpsApi);
+        }).thenAcceptAsync(optionsInfo -> {
             logActionWithServer(event, "set " + AUTOLOAD_SESSION_NAME + " to " + autoloadSessionName + " for", server.getName());
+
+            MDC.setContextMap(mdc);
+            event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
+                    .useComponentsV2().queue();
+
         }).exceptionallyAsync(throwable -> {
             event.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
             return null;
@@ -312,9 +330,9 @@ public final class ServerOptionsInteractions {
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "apply server options to", httpsApi -> {
             httpsApi.applyServerOptions(options);
-            return OptionsAndSessions.get(httpsApi);
-        }).thenAcceptAsync(optionsAndSessions -> {
-            String newValue = getPendingOrCurrentValue(optionsAndSessions.options, key);
+            return OptionsInfo.get(httpsApi);
+        }).thenAcceptAsync(optionsInfo -> {
+            String newValue = getPendingOrCurrentValue(optionsInfo.options, key);
 
             String formattedValue = switch (key) {
                 case ServerOptions.NETWORK_QUALITY -> getNetworkQualityName(newValue);
@@ -326,7 +344,7 @@ public final class ServerOptionsInteractions {
             logActionWithServer(interaction, "set " + getOptionName(key) + " to " + formattedValue + " for", server.getName());
 
             MDC.setContextMap(mdc);
-            interaction.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsAndSessions))
+            interaction.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
                     .useComponentsV2().queue();
 
         }).exceptionallyAsync(throwable -> {

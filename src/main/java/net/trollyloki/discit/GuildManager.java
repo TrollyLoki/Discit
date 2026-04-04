@@ -39,7 +39,7 @@ public class GuildManager {
     private final String guildId;
     private final GuildData data;
 
-    private final Map<UUID, ServerUpdater> updaters = new HashMap<>();
+    private final Map<UUID, ServerMonitor> monitors = new HashMap<>();
 
     private GuildManager(JDA jda, String guildId, GuildData data) {
         this.jda = jda;
@@ -56,7 +56,7 @@ public class GuildManager {
         return guildManager;
     }
 
-    private void save() {
+    private synchronized void save() {
         File dataFile = dataFile(guildId);
         try {
             boolean ignored = dataFile.getParentFile().mkdirs();
@@ -149,9 +149,7 @@ public class GuildManager {
     }
 
     private void initServer(UUID serverId) {
-        ServerUpdater updater = new ServerUpdater(this, serverId);
-        updaters.put(serverId, updater);
-        updater.start();
+        monitors.put(serverId, new ServerMonitor(this, serverId));
     }
 
     public synchronized @Nullable Server removeServer(UUID serverId) {
@@ -159,19 +157,18 @@ public class GuildManager {
         if (serverData == null) return null;
         save();
 
-        try (ServerUpdater updater = updaters.remove(serverId)) {
-            updater.stop();
-        }
+        ServerMonitor monitor = monitors.remove(serverId);
+        if (monitor != null) monitor.close();
 
         return serverData;
     }
 
-    public void updateServer(UUID serverId) {
-        ServerUpdater updater = updaters.get(serverId);
-        if (updater != null) {
-            updater.update();
+    public void refreshServer(UUID serverId) {
+        ServerMonitor monitor = monitors.get(serverId);
+        if (monitor != null) {
+            monitor.refresh();
         } else {
-            LOGGER.warn("Could not find updater for server {}", serverId);
+            LOGGER.warn("Could not find monitor for server {}", serverId);
         }
     }
 
@@ -188,6 +185,10 @@ public class GuildManager {
         if (server != null) {
             server.setToken(token);
             save();
+
+            ServerMonitor monitor = monitors.get(serverId);
+            if (monitor != null) monitor.getDashboardUpdater().setAuthenticated(server.hasToken());
+
             return true;
         }
         return false;

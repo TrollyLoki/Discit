@@ -1,6 +1,5 @@
 package net.trollyloki.discit;
 
-import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
@@ -8,17 +7,16 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import net.dv8tion.jda.api.interactions.Interaction;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.util.Arrays;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.InteractionUtils.getGuildManager;
+import static net.trollyloki.discit.LoggingUtils.setMDC;
 import static net.trollyloki.discit.interactions.AddInteractions.*;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.*;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
@@ -47,17 +45,9 @@ public class InteractionListener extends ListenerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InteractionListener.class);
 
-    private static void setMDC(Interaction interaction) {
-        MDC.put("user", interaction.getUser().getName());
-
-        Guild guild = interaction.getGuild();
-        if (guild != null && !guild.isDetached()) MDC.put("guild", guild.getName());
-        else MDC.remove("guild");
-    }
-
     public static final String
             CANCEL_BUTTON_ID = "cancel",
-            DASHBOARD_UPDATE_BUTTON_ID = "dashboard-update";
+            DASHBOARD_REFRESH_BUTTON_ID = "dashboard-refresh";
 
     public static String buildId(Object... arguments) {
         return Arrays.stream(arguments).map(Object::toString).collect(Collectors.joining(":"));
@@ -113,7 +103,7 @@ public class InteractionListener extends ListenerAdapter {
             case LIST_AUTHENTICATE_BUTTON_ID -> onAuthenticateButton(event, id[1], true);
             case LIST_DEAUTHENTICATE_BUTTON_ID -> onDeauthenticateButtonOnList(event, id[1]);
             case LIST_REMOVE_BUTTON_ID -> onListRemoveButton(event, id[1]);
-            case DASHBOARD_UPDATE_BUTTON_ID -> onDashboardUpdateButton(event, id[1]);
+            case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
             case RELOAD_BUTTON_ID -> onReloadButton(event, id[1]);
             case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);
             case UPLOAD_BUTTON_ID -> onUploadButton(event, id[1]);
@@ -163,11 +153,11 @@ public class InteractionListener extends ListenerAdapter {
         event.getHook().deleteOriginal().queue();
     }
 
-    public void onDashboardUpdateButton(ButtonInteractionEvent event, String serverIdString) {
+    public void onDashboardRefreshButton(ButtonInteractionEvent event, String serverIdString) {
         // no permission required
 
-        LOGGER.info("Forcing server update");
-        getGuildManager(event).updateServer(UUID.fromString(serverIdString));
+        LOGGER.info("Forcing refresh of server {}", serverIdString);
+        getGuildManager(event).refreshServer(UUID.fromString(serverIdString));
 
         event.deferEdit().queue();
     }

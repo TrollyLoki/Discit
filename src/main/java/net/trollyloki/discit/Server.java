@@ -21,8 +21,8 @@ public interface Server {
 
     boolean hasToken();
 
-    QueryApi queryApi(Duration timeout) throws SocketException;
+    QueryApi queryApi(@Nullable Duration timeout) throws SocketException;
 
-    HttpsApi httpsApi(Duration timeout);
+    HttpsApi httpsApi(@Nullable Duration timeout);
 
 }

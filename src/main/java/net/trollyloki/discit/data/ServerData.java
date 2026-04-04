@@ -94,12 +94,12 @@ public class ServerData implements Server {
     }
 
     @Override
-    public QueryApi queryApi(Duration timeout) throws SocketException {
+    public QueryApi queryApi(@Nullable Duration timeout) throws SocketException {
         return QueryApi.of(host, port, timeout);
     }
 
     @Override
-    public HttpsApi httpsApi(Duration timeout) {
+    public HttpsApi httpsApi(@Nullable Duration timeout) {
         HttpsApi httpsApi = HttpsApi.of(host, port, timeout, trustManager);
         httpsApi.setToken(token);
         return httpsApi;

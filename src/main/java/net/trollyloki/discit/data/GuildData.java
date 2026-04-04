@@ -13,8 +13,9 @@ public class GuildData {
     private final Map<UUID, ServerData> servers = new ConcurrentHashMap<>();
 
     private @Nullable String adminRoleId;
-    private @Nullable String actionLogChannelId;
     private @Nullable String dashboardChannelId;
+    private @Nullable String logChannelId;
+    private long offlineAlertDelaySeconds = -1;
 
     public Map<UUID, ServerData> getServers() {
         return servers;
@@ -28,20 +29,28 @@ public class GuildData {
         this.adminRoleId = adminRoleId;
     }
 
-    public @Nullable String getActionLogChannelId() {
-        return actionLogChannelId;
-    }
-
-    public void setActionLogChannelId(@Nullable String actionLogChannelId) {
-        this.actionLogChannelId = actionLogChannelId;
-    }
-
     public @Nullable String getDashboardChannelId() {
         return dashboardChannelId;
     }
 
     public void setDashboardChannelId(@Nullable String dashboardChannelId) {
         this.dashboardChannelId = dashboardChannelId;
+    }
+
+    public @Nullable String getLogChannelId() {
+        return logChannelId;
+    }
+
+    public void setLogChannelId(@Nullable String logChannelId) {
+        this.logChannelId = logChannelId;
+    }
+
+    public long getOfflineAlertDelaySeconds() {
+        return offlineAlertDelaySeconds;
+    }
+
+    public void setOfflineAlertDelaySeconds(long offlineAlertDelaySeconds) {
+        this.offlineAlertDelaySeconds = offlineAlertDelaySeconds;
     }
 
 }

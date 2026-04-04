@@ -23,6 +23,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 
 @NullMarked
@@ -45,12 +46,14 @@ public class ServerMonitor implements Closeable {
     private final DashboardUpdater dashboardUpdater;
 
     private final ScheduledExecutorService updateExecutor;
+    private final ScheduledExecutorService alertExecutor;
     private final ScheduledExecutorService requestServerStateExecutor;
     private final ScheduledExecutorService receiveServerStateExecutor;
 
     private @Nullable QueryApi queryApi;
 
-    private @Nullable ScheduledFuture<?> timeoutFuture;
+    private @Nullable ScheduledFuture<?> offlineFuture;
+    private @Nullable ScheduledFuture<?> offlineAlertFuture;
 
     private short cachedGameStateVersion;
     private @Nullable ServerGameState cachedGameState;
@@ -72,7 +75,8 @@ public class ServerMonitor implements Closeable {
         dashboardUpdater = new DashboardUpdater(guildManager, serverId, server.hasToken());
 
         updateExecutor = Executors.newSingleThreadScheduledExecutor();
-        scheduleOfflineTimeout();
+        scheduleOfflineFuture();
+        alertExecutor = Executors.newSingleThreadScheduledExecutor();
 
         requestServerStateExecutor = Executors.newSingleThreadScheduledExecutor();
         requestServerStateExecutor.scheduleAtFixedRate(this::requestServerState, 0, POLL_INTERVAL.toNanos(), TimeUnit.NANOSECONDS);
@@ -97,6 +101,7 @@ public class ServerMonitor implements Closeable {
         requestServerStateExecutor.shutdown();
         receiveServerStateExecutor.shutdown();
         updateExecutor.shutdown();
+        alertExecutor.shutdown();
 
         if (queryApi != null) {
             LOGGER.info("Closing monitor socket for server \"{}\"", server.getName());
@@ -138,16 +143,25 @@ public class ServerMonitor implements Closeable {
             }
 
             updateExecutor.submit(() -> onState(state, ping));
-            if (timeoutFuture != null) timeoutFuture.cancel(true);
-            scheduleOfflineTimeout();
+            if (offlineFuture != null) offlineFuture.cancel(true);
+            scheduleOfflineFuture();
+
+            if (offlineAlertFuture != null) offlineAlertFuture.cancel(true);
+            Duration alertDelay = guildManager.getOfflineAlertDelay();
+            if (alertDelay != null) {
+                offlineAlertFuture = alertExecutor.schedule(
+                        () -> guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went offline"),
+                        alertDelay.toNanos(), TimeUnit.NANOSECONDS
+                );
+            }
 
         } catch (Exception e) {
             LOGGER.warn("Unexpected exception while receiving server state for server \"{}\"", server.getName(), e);
         }
     }
 
-    private void scheduleOfflineTimeout() {
-        timeoutFuture = updateExecutor.schedule(this::onOffline, OFFLINE_TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
+    private void scheduleOfflineFuture() {
+        offlineFuture = updateExecutor.schedule(this::onOffline, OFFLINE_TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private void onOffline() {

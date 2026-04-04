@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
@@ -123,23 +124,7 @@ public final class ServerOptionsInteractions {
 
     private static String formatInterval(int totalSeconds) {
         if (totalSeconds <= 0) return "Off";
-
-        int hours = totalSeconds / 60 / 60;
-        int minutes = totalSeconds / 60 % 60;
-        int seconds = totalSeconds % 60;
-
-        List<String> parts = new ArrayList<>(3);
-
-        if (hours > 1) parts.add(hours + " hours");
-        else if (hours == 1) parts.add("1 hour");
-
-        if (minutes > 1) parts.add(minutes + " minutes");
-        else if (minutes == 1) parts.add("1 minute");
-
-        if (seconds > 1) parts.add(seconds + " seconds");
-        else if (seconds == 1) parts.add("1 second");
-
-        return String.join(" ", parts);
+        else return formatDuration(totalSeconds);
     }
 
     private static StringSelectMenu autosaveIntervalSelectMenu(String serverIdString, ServerOptions options) {

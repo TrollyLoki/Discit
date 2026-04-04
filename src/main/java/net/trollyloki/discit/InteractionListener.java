@@ -84,8 +84,8 @@ public class InteractionListener extends ListenerAdapter {
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
             case ADMIN_ROLE_SELECT_ID -> onAdminRoleSelect(event);
-            case ACTION_LOG_CHANNEL_SELECT_ID -> onActionLogChannelSelect(event);
             case DASHBOARD_CHANNEL_SELECT_ID -> onDashboardChannelSelect(event);
+            case LOG_CHANNEL_SELECT_ID -> onLogChannelSelect(event);
             default -> LOGGER.warn("Unknown entity select ID {}", event.getComponentId());
         }
     }
@@ -123,6 +123,7 @@ public class InteractionListener extends ListenerAdapter {
         setMDC(event);
         String[] id = event.getComponentId().split(":");
         switch (id[0]) {
+            case OFFLINE_ALERT_DELAY_SELECT_ID -> onOfflineAlertDelaySelect(event);
             case LIST_SELECT_ID -> onListSelect(event);
             case AUTOLOAD_SESSION_NAME_SELECT_ID -> onSetAutoloadSessionNameSelect(event, id[1]);
             case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionSelect(event, id[1], id[2]);

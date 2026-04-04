@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.trollyloki.discit.data.GuildData;
 import net.trollyloki.discit.data.ServerData;
 import org.jspecify.annotations.NullMarked;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +30,8 @@ import static net.trollyloki.discit.AddressUtils.validateHostAddress;
 public class GuildManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GuildManager.class);
+
+    private static final Emoji ALERT_EMOJI = Emoji.fromUnicode("⚠️");
 
     private static final ObjectMapper DATA_MAPPER = new ObjectMapper();
 
@@ -85,25 +89,25 @@ public class GuildManager {
         return getGuild().getRoleById(roleId);
     }
 
-    public @Nullable GuildMessageChannel getActionLogChannel() {
-        String channelId = data.getActionLogChannelId();
-        if (channelId == null) return null;
-        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
-    }
-
     public @Nullable GuildMessageChannel getDashboardChannel() {
         String channelId = data.getDashboardChannelId();
         if (channelId == null) return null;
         return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
-    public void setAdminRole(@Nullable String roleId) {
-        data.setAdminRoleId(roleId);
-        save();
+    public @Nullable GuildMessageChannel getLogChannel() {
+        String channelId = data.getLogChannelId();
+        if (channelId == null) return null;
+        return getGuild().getChannelById(GuildMessageChannel.class, channelId);
     }
 
-    public void setActionLogChannel(@Nullable String channelId) {
-        data.setActionLogChannelId(channelId);
+    public @Nullable Duration getOfflineAlertDelay() {
+        long seconds = data.getOfflineAlertDelaySeconds();
+        return seconds < 0 ? null : Duration.ofSeconds(seconds);
+    }
+
+    public void setAdminRole(@Nullable String roleId) {
+        data.setAdminRoleId(roleId);
         save();
     }
 
@@ -112,10 +116,35 @@ public class GuildManager {
         save();
     }
 
+    public void setLogChannel(@Nullable String channelId) {
+        data.setLogChannelId(channelId);
+        save();
+    }
+
+    public void setOfflineAlertDelay(@Nullable Duration delay) {
+        if (delay != null && delay.isNegative()) {
+            throw new IllegalArgumentException("Non-null delay cannot be negative");
+        }
+        data.setOfflineAlertDelaySeconds(delay == null ? -1 : delay.toSeconds());
+        save();
+    }
+
     public void logAction(User user, String action) {
-        GuildMessageChannel channel = getActionLogChannel();
+        GuildMessageChannel channel = getLogChannel();
         if (channel == null) return;
+
         channel.sendMessage(user.getAsMention() + " " + action).setAllowedMentions(Collections.emptySet()).queue();
+    }
+
+    public void logAlert(String alert) {
+        GuildMessageChannel channel = getLogChannel();
+        if (channel == null) return;
+
+        String text = ALERT_EMOJI.getFormatted() + " " + alert;
+        Role role = getAdminRole();
+        if (role != null) text += " " + getAdminRole().getAsMention();
+
+        channel.sendMessage(text).queue();
     }
 
     public boolean isDashboard(@Nullable Channel channel) {

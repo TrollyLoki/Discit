@@ -6,6 +6,8 @@ import org.jspecify.annotations.Nullable;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @NullMarked
 public final class FormattingUtils {
@@ -30,6 +32,25 @@ public final class FormattingUtils {
 
     public static String inlineServerDisplayName(@Nullable String serverName) {
         return "**" + serverDisplayName(serverName) + "**";
+    }
+
+    public static String formatDuration(long totalSeconds) {
+        long hours = totalSeconds / 60 / 60;
+        long minutes = totalSeconds / 60 % 60;
+        long seconds = totalSeconds % 60;
+
+        List<String> parts = new ArrayList<>(3);
+
+        if (hours > 1) parts.add(hours + " hours");
+        else if (hours == 1) parts.add("1 hour");
+
+        if (minutes > 1) parts.add(minutes + " minutes");
+        else if (minutes == 1) parts.add("1 minute");
+
+        if (seconds > 1) parts.add(seconds + " seconds");
+        else if (seconds == 1) parts.add("1 second");
+
+        return String.join(" ", parts);
     }
 
 }

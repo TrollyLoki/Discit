@@ -33,6 +33,7 @@ import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class ListInteractions {
@@ -160,7 +161,7 @@ public final class ListInteractions {
 
         CompletableFuture<String> tokenFuture;
         if (type.getAsStringList().get(0).equals("password")) {
-            LOGGER.info("Generating API token for server \"{}\"", server.getName());
+            LOGGER.info("Generating API token for {}", serverNameForLog(server));
 
             tokenFuture = requestAsync(server, "generate token for", httpsApi -> {
 

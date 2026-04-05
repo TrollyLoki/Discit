@@ -20,6 +20,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 
@@ -89,7 +90,7 @@ public class ServerMonitor implements Closeable {
         updateExecutor.shutdownNow();
 
         if (queryApi != null) {
-            LOGGER.info("Closing monitor socket for server \"{}\"", server.getName());
+            LOGGER.info("Closing monitor socket for {}", serverNameForLog(server));
             queryApi.close();
         }
 
@@ -111,7 +112,7 @@ public class ServerMonitor implements Closeable {
             getQueryApi().requestServerState(System.nanoTime());
 
         } catch (Exception e) {
-            LOGGER.warn("Unexpected exception while requesting server state for server \"{}\"", server.getName(), e);
+            LOGGER.warn("Unexpected exception while requesting server state for {}", serverNameForLog(server), e);
         }
     }
 
@@ -150,7 +151,7 @@ public class ServerMonitor implements Closeable {
                 }
 
                 if (status != lastStatus || gameStateVersion != lastGameStateVersion) {
-                    LOGGER.info("Received new state response from server \"{}\": \"{}\" {}", server.getName(), status, gameStateVersion);
+                    LOGGER.info("New state response from {}: \"{}\" {}", serverNameForLog(server), status, gameStateVersion);
 
                     if (status != lastStatus && lastStatus == ServerStatus.PLAYING) {
                         gameStateCache.reset();
@@ -167,7 +168,7 @@ public class ServerMonitor implements Closeable {
             });
 
         } catch (Exception e) {
-            LOGGER.warn("Unexpected exception while receiving server state for server \"{}\"", server.getName(), e);
+            LOGGER.warn("Unexpected exception while receiving server state for {}", serverNameForLog(server), e);
         }
     }
 
@@ -175,7 +176,7 @@ public class ServerMonitor implements Closeable {
         offlineFuture = updateExecutor.schedule(() -> {
             setMDC(guildManager);
 
-            LOGGER.info("No state responses from server \"{}\" have been received in a while", server.getName());
+            LOGGER.info("No state responses from {} have been received in a while", serverNameForLog(server));
 
             if (lastStatus == ServerStatus.PLAYING) {
                 gameStateCache.reset();

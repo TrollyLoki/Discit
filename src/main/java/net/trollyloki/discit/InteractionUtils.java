@@ -44,6 +44,7 @@ import java.util.function.Function;
 import static net.trollyloki.discit.FormattingUtils.defaultSaveName;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class InteractionUtils {
@@ -129,6 +130,7 @@ public final class InteractionUtils {
 
         Server server = getGuildManager(callback).getServer(UUID.fromString(serverIdString));
         if (server == null) {
+            LOGGER.warn("Unknown server {}", serverIdString);
             callback.reply("Unknown server").setEphemeral(true).queue();
             return null;
         }
@@ -148,18 +150,12 @@ public final class InteractionUtils {
     }
 
     public static @Nullable List<Server> getServersIfAdmin(IReplyCallback callback, Collection<String> serverIdStrings) {
-        if (missingAdminRole(callback))
-            return null;
-
-        GuildManager guildManager = getGuildManager(callback);
-
         List<Server> servers = new ArrayList<>(serverIdStrings.size());
         for (String serverIdString : serverIdStrings) {
-            Server server = guildManager.getServer(UUID.fromString(serverIdString));
-            if (server == null) {
-                callback.reply("Unknown server selected").setEphemeral(true).queue();
+            Server server = getServerIfAdmin(callback, serverIdString);
+            if (server == null)
                 return null;
-            }
+
             servers.add(server);
         }
         return servers;
@@ -222,7 +218,7 @@ public final class InteractionUtils {
             return false;
         }
 
-        LOGGER.info("Verifying token for server \"{}\"", serverName);
+        LOGGER.info("Verifying token for {}", serverNameForLog(serverName));
 
         // Verify token
         try {
@@ -234,7 +230,7 @@ public final class InteractionUtils {
             return false;
         } catch (Exception e) {
             event.getHook().sendMessage("Failed to verify token").setEphemeral(true).queue();
-            LOGGER.warn("Failed to verify authentication token for server \"{}\"", serverName, e);
+            LOGGER.warn("Failed to verify authentication token for {}", serverNameForLog(serverName), e);
             return false;
         }
 
@@ -270,7 +266,7 @@ public final class InteractionUtils {
             } else {
                 message = "Failed" + message;
                 MDC.setContextMap(mdc);
-                LOGGER.warn("Failed to {} server \"{}\"", actionString, server.getName(), exception.getCause());
+                LOGGER.warn("Failed to execute request on {}", serverNameForLog(server), exception.getCause());
             }
             // Rethrowing specifically a CompletionException here prevents it from being doubly wrapped
             throw new CompletionException(message, exception.getCause());

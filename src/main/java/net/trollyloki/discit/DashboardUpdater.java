@@ -41,6 +41,7 @@ import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.GREEN_ACCENT;
 import static net.trollyloki.discit.InteractionUtils.RED_ACCENT;
 import static net.trollyloki.discit.InteractionUtils.YELLOW_ACCENT;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
@@ -100,7 +101,7 @@ public class DashboardUpdater {
                     && Objects.equals(gameState, this.gameState)
             ) return;
 
-            LOGGER.info("New dashboard info for server \"{}\": \"{}\" {} {}", name, status, message == null ? null : '"' + message + '"', gameState);
+            LOGGER.info("New dashboard info for {}: \"{}\" {} {}", serverNameForLog(name), status, message == null ? null : '"' + message + '"', gameState);
 
             this.name = name;
             this.status = status;
@@ -127,7 +128,7 @@ public class DashboardUpdater {
 
     private void cancelMessageUpdate() {
         if (messageUpdateFuture != null && !messageUpdateFuture.isDone()) {
-            LOGGER.info("Cancelling previous message update for server \"{}\"", name);
+            LOGGER.info("Cancelling previous message update for {}", serverNameForLog(name));
             messageUpdateFuture.cancel(false);
             try {
                 messageUpdateFuture.join();
@@ -145,7 +146,7 @@ public class DashboardUpdater {
 
             if (messageId == null) return;
 
-            LOGGER.info("Deleting dashboard message for server \"{}\"", name);
+            LOGGER.info("Deleting dashboard message for {}", serverNameForLog(name));
             channel.deleteMessageById(messageId).queue();
         });
         executor.shutdown();
@@ -179,7 +180,7 @@ public class DashboardUpdater {
                         messageUpdateFuture = sendNewDashboardMessage(channel, container);
                         return messageUpdateFuture;
                     } else {
-                        LOGGER.warn("Error editing dashboard message for server \"{}\"", name, throwable);
+                        LOGGER.warn("Error editing dashboard message for {}", serverNameForLog(name), throwable);
                         return future;
                     }
 
@@ -205,7 +206,7 @@ public class DashboardUpdater {
             }
 
             if (throwable != null) {
-                LOGGER.warn("Error sending new dashboard message for server \"{}\"", name, throwable);
+                LOGGER.warn("Error sending new dashboard message for {}", serverNameForLog(name), throwable);
             }
 
         }, executor);

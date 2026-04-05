@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class ReloadInteractions {
@@ -85,7 +86,7 @@ public final class ReloadInteractions {
             final int index = i;
             Server server = servers.get(index);
 
-            LOGGER.info("Reloading server \"{}\"", server.getName());
+            LOGGER.info("Reloading {}", serverNameForLog(server));
 
             requestAsync(server, "reload", httpsApi -> {
                 httpsApi.save(RELOAD_SAVE_NAME);

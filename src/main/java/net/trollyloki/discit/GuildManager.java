@@ -206,6 +206,8 @@ public class GuildManager {
         if (server != null) {
             server.setName(name);
             save();
+        } else {
+            LOGGER.warn("Could not update name for unknown server {}", serverId);
         }
     }
 
@@ -219,8 +221,10 @@ public class GuildManager {
             if (monitor != null) monitor.getDashboardUpdater().setAuthenticated(server.hasToken());
 
             return true;
+        } else {
+            LOGGER.warn("Could not set token for unknown server {}", serverId);
+            return false;
         }
-        return false;
     }
 
     public @Nullable String getDashboardMessageId(UUID serverId) {

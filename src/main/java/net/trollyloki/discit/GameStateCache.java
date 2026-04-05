@@ -16,6 +16,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 
@@ -64,10 +65,10 @@ public class GameStateCache {
 
     public synchronized void reset() {
         if (future != null && !future.isDone()) {
-            LOGGER.info("Cancelling game state query and clearing cached game state for server \"{}\"", server.getName());
+            LOGGER.info("Cancelling game state query and clearing cached game state for {}", serverNameForLog(server));
             future.cancel(true);
         } else {
-            LOGGER.info("Clearing cached game state for server \"{}\"", server.getName());
+            LOGGER.info("Clearing cached game state for {}", serverNameForLog(server));
         }
 
         this.gameState = null;
@@ -91,7 +92,7 @@ public class GameStateCache {
 
     private void query() {
         setMDC(guildManager);
-        LOGGER.info("Querying game state of server \"{}\"", server.getName());
+        LOGGER.info("Querying game state of {}", serverNameForLog(server));
 
         try {
             HttpsApi httpsApi = server.httpsApi(QUERY_TIMEOUT);
@@ -106,12 +107,12 @@ public class GameStateCache {
             return;
 
         } catch (ApiException e) {
-            LOGGER.warn("Unable to query game state of server \"{}\": {}", server.getName(), e.getMessage());
+            LOGGER.warn("Unable to query game state of {}: {}", serverNameForLog(server), e.getMessage());
 
             set(null, "Unable to query game state: " + e.getMessage());
 
         } catch (Exception e) {
-            LOGGER.warn("Failed to query game state of server \"{}\"", server.getName(), e);
+            LOGGER.warn("Failed to query game state of {}", serverNameForLog(server), e);
 
             set(null, "Failed to query game state");
 

@@ -13,6 +13,7 @@ import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.InteractionUtils.getServerIfAdmin;
 import static net.trollyloki.discit.InteractionUtils.logActionWithServer;
 import static net.trollyloki.discit.InteractionUtils.requestAsync;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class InvalidateTokensInteractions {
@@ -31,7 +32,7 @@ public final class InvalidateTokensInteractions {
 
         event.deferReply(true).queue();
 
-        LOGGER.info("Invalidating all API tokens for server \"{}\"", server.getName());
+        LOGGER.info("Invalidating all API tokens for {}", serverNameForLog(server));
 
         requestAsync(server, "invalidate all API tokens for", InteractionUtils::invalidateTokens).thenApplyAsync(result -> {
             if (result.success()) {

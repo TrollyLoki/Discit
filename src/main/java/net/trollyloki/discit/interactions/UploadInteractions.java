@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class UploadInteractions {
@@ -205,7 +206,7 @@ public final class UploadInteractions {
                 final int index = i;
                 Server server = servers.get(index);
 
-                LOGGER.info("Uploading save \"{}\" to server \"{}\"", saveName, server.getName());
+                LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server));
 
                 requestAsync(server, "upload " + file + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {

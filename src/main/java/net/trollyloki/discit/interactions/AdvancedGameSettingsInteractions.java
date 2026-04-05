@@ -23,6 +23,7 @@ import java.util.Map;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class AdvancedGameSettingsInteractions {
@@ -163,7 +164,7 @@ public final class AdvancedGameSettingsInteractions {
         interaction.deferEdit().queue();
 
         Map<String, String> settings = Map.of(key, value);
-        LOGGER.info("Applying Advanced Game Settings {} on server \"{}\"", settings, server.getName());
+        LOGGER.info("Applying Advanced Game Settings {} on {}", settings, serverNameForLog(server));
 
         requestAsync(server, "apply Advanced Game Settings on", httpsApi -> {
             httpsApi.applyAdvancedGameSettings(settings);

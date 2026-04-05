@@ -27,6 +27,7 @@ import java.util.UUID;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class SaveInteractions {
@@ -95,7 +96,7 @@ public final class SaveInteractions {
 
         event.deferReply(isDashboard(event)).queue();
 
-        LOGGER.info("Saving server \"{}\" as \"{}\"", server.getName(), saveName);
+        LOGGER.info("Saving {} as \"{}\"", serverNameForLog(server), saveName);
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         saveAsync(server, saveName).thenComposeAsync(saveInfo -> {
@@ -103,7 +104,7 @@ public final class SaveInteractions {
             event.getHook().editOriginal("Downloading `" + saveInfo.name() + SaveFileReader.EXTENSION + "` from " + inlineServerDisplayName(server.getName()) + "...").queue();
 
             MDC.setContextMap(mdc);
-            LOGGER.info("Downloading save \"{}\" from server \"{}\"", saveInfo.name(), server.getName());
+            LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server));
 
             return requestAsync(server, "download `" + saveInfo.name() + SaveFileReader.EXTENSION + "` from", httpsApi -> {
                 return new SaveDownload(saveInfo, httpsApi.downloadSave(saveInfo.name()));

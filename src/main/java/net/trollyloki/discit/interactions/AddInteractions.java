@@ -38,6 +38,7 @@ import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.CANCEL_BUTTON_ID;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class AddInteractions {
@@ -204,7 +205,7 @@ public final class AddInteractions {
 
         event.deferEdit().queue();
 
-        LOGGER.info("Claiming server \"{}\"", name.getAsString());
+        LOGGER.info("Claiming {}", serverNameForLog(name.getAsString()));
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "claim", httpsApi -> {
@@ -222,7 +223,7 @@ public final class AddInteractions {
                         verifyAndSetToken(event, serverIdString, token, name.getAsString());
                     } catch (Exception e) {
                         event.getHook().sendMessage("Automatic authentication failed").queue();
-                        LOGGER.warn("Automatic authentication for server \"{}\" failed", name.getAsString(), e);
+                        LOGGER.warn("Automatic authentication for {} failed", serverNameForLog(name.getAsString()), e);
                     }
                 });
             }

@@ -29,6 +29,7 @@ import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class ServerOptionsInteractions {
@@ -275,7 +276,7 @@ public final class ServerOptionsInteractions {
         event.deferEdit().queue();
 
         String autoloadSessionName = event.getValues().get(0);
-        LOGGER.info("Setting auto-load session name for server \"{}\" to \"{}\"", server.getName(), autoloadSessionName);
+        LOGGER.info("Setting auto-load session name for {} to \"{}\"", serverNameForLog(server), autoloadSessionName);
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "set auto-load session name for", httpsApi -> {
@@ -310,7 +311,7 @@ public final class ServerOptionsInteractions {
         interaction.deferEdit().queue();
 
         Map<String, String> options = Map.of(key, value);
-        LOGGER.info("Applying server options {} to server \"{}\"", options, server.getName());
+        LOGGER.info("Applying server options {} to {}", options, serverNameForLog(server));
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "apply server options to", httpsApi -> {

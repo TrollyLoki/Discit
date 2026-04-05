@@ -34,6 +34,7 @@ import static net.trollyloki.discit.InteractionUtils.getAllServersIfAdmin;
 import static net.trollyloki.discit.InteractionUtils.isDashboard;
 import static net.trollyloki.discit.InteractionUtils.logAction;
 import static net.trollyloki.discit.InteractionUtils.saveAsync;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class BackupInteractions {
@@ -124,7 +125,7 @@ public final class BackupInteractions {
                     Server server = serverArray[entry.getKey()];
                     SaveInfo saveInfo = entry.getValue();
 
-                    LOGGER.info("Downloading save \"{}\" from server \"{}\"", saveInfo.name(), server.getName());
+                    LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server));
 
                     try (InputStream saveData = server.httpsApi(Duration.ofSeconds(3)).downloadSave(saveInfo.name())) {
                         zipStream.putNextEntry(new ZipEntry(saveInfo.name() + SaveFileReader.EXTENSION));

@@ -3,6 +3,7 @@ package net.trollyloki.discit;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.interactions.Interaction;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.MDC;
 
 import java.util.UUID;
@@ -27,6 +28,15 @@ public final class LoggingUtils {
 
     public static void setMDC(GuildManager guildManager) {
         MDC.put(GUILD, guildManager.getGuild().getName());
+    }
+
+    public static @Nullable String serverNameForLog(@Nullable String serverName) {
+        if (serverName == null) return null;
+        else return '"' + serverName + '"';
+    }
+
+    public static @Nullable String serverNameForLog(Server server) {
+        return serverNameForLog(server.getName());
     }
 
     public static ThreadFactory serverThreadFactory(UUID serverId, String threadName) {

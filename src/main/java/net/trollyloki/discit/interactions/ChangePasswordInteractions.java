@@ -21,6 +21,7 @@ import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.getServerIfAdmin;
 import static net.trollyloki.discit.InteractionUtils.logActionWithServer;
 import static net.trollyloki.discit.InteractionUtils.requestAsync;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class ChangePasswordInteractions {
@@ -98,7 +99,7 @@ public final class ChangePasswordInteractions {
 
         event.deferReply(true).queue();
 
-        LOGGER.info("{} {} for server \"{}\"", password.isEmpty() ? "Removing" : "Changing", typeLower, server.getName());
+        LOGGER.info("{} {} for {}", password.isEmpty() ? "Removing" : "Changing", typeLower, serverNameForLog(server));
 
         String action = password.isEmpty() ? "remove" : "change";
         requestAsync(server, action + " " + typeLower + " for", httpsApi -> {

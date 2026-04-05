@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 
 @NullMarked
 public final class RenameInteractions {
@@ -51,7 +52,7 @@ public final class RenameInteractions {
 
         event.deferReply(isDashboard(event)).queue();
 
-        LOGGER.info("Renaming server \"{}\" to \"{}\"", originalName, newName);
+        LOGGER.info("Renaming {} to {}", serverNameForLog(originalName), serverNameForLog(newName));
 
         requestAsync(server, "rename", httpsApi -> {
             httpsApi.renameServer(newName);

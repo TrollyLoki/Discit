@@ -91,13 +91,15 @@ public class DashboardUpdater {
         });
     }
 
-    public void update(@Nullable String name, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
+    public void setInfo(@Nullable String name, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
         execute(() -> {
             if (Objects.equals(name, this.name)
                     && status == this.status
                     && Objects.equals(message, this.message)
                     && Objects.equals(gameState, this.gameState)
             ) return;
+
+            LOGGER.info("New dashboard info for server \"{}\": \"{}\" {} {}", name, status, message == null ? null : '"' + message + '"', gameState);
 
             this.name = name;
             this.status = status;
@@ -124,7 +126,7 @@ public class DashboardUpdater {
 
     private void cancelMessageUpdate() {
         if (messageUpdateFuture != null && !messageUpdateFuture.isDone()) {
-            LOGGER.info("Cancelling existing pending update request for server \"{}\"", name);
+            LOGGER.info("Cancelling previous message update for server \"{}\"", name);
             messageUpdateFuture.cancel(false);
             try {
                 messageUpdateFuture.join();
@@ -156,7 +158,6 @@ public class DashboardUpdater {
         }
 
         execute(() -> {
-            LOGGER.info("Updating dashboard message for server \"{}\"", name);
 
             // Cancel any pending request
             cancelMessageUpdate();
@@ -171,6 +172,7 @@ public class DashboardUpdater {
 
                 future.exceptionallyComposeAsync(throwable -> {
                     if (future.isCancelled()) return future;
+                    setMDC(guildManager);
 
                     if (throwable instanceof ErrorResponseException response && response.getErrorResponse() == ErrorResponse.UNKNOWN_MESSAGE) {
                         messageUpdateFuture = sendNewDashboardMessage(channel, container);
@@ -192,13 +194,21 @@ public class DashboardUpdater {
 
     private CompletableFuture<Message> sendNewDashboardMessage(GuildMessageChannel channel, Container container) {
         CompletableFuture<Message> future = channel.sendMessageComponents(container).useComponentsV2().submit();
-        future.thenAcceptAsync(this::updateDashboardMessageId, executor);
-        return future;
-    }
 
-    private void updateDashboardMessageId(Message newMessage) {
-        messageId = newMessage.getId();
-        guildManager.updateDashboardMessageId(serverId, messageId);
+        future.whenCompleteAsync((newMessage, throwable) -> {
+            setMDC(guildManager);
+
+            if (newMessage != null) {
+                messageId = newMessage.getId();
+                guildManager.updateDashboardMessageId(serverId, messageId);
+            }
+
+            if (throwable != null) {
+                LOGGER.warn("Error sending new dashboard message for server \"{}\"", name, throwable);
+            }
+
+        }, executor);
+        return future;
     }
 
     private Container createContainer() {

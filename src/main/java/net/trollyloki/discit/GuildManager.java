@@ -195,7 +195,7 @@ public class GuildManager {
     public void refreshServer(UUID serverId) {
         ServerMonitor monitor = monitors.get(serverId);
         if (monitor != null) {
-            monitor.refresh();
+            monitor.getGameStateCache().refresh();
         } else {
             LOGGER.warn("Could not find monitor for server {}", serverId);
         }

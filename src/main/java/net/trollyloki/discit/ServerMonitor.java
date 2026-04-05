@@ -20,6 +20,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 
 @NullMarked
@@ -60,16 +61,16 @@ public class ServerMonitor implements Closeable {
         }
         this.server = server;
 
-        gameStateCache = new GameStateCache(guildManager, server);
+        gameStateCache = new GameStateCache(guildManager, serverId, server);
         dashboardUpdater = new DashboardUpdater(guildManager, serverId, server.hasToken());
 
-        requestServerStateExecutor = Executors.newSingleThreadScheduledExecutor();
+        requestServerStateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "State Request Thread"));
         requestServerStateExecutor.scheduleAtFixedRate(this::requestServerState, 0, POLL_INTERVAL.toNanos(), TimeUnit.NANOSECONDS);
 
-        receiveServerStateExecutor = Executors.newSingleThreadScheduledExecutor();
+        receiveServerStateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "State Receive Thread"));
         receiveServerStateExecutor.scheduleWithFixedDelay(this::receiveServerState, 0, 1, TimeUnit.NANOSECONDS);
 
-        updateExecutor = Executors.newSingleThreadScheduledExecutor();
+        updateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "Server Update Thread"));
         scheduleOfflineFuture();
     }
 

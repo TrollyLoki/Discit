@@ -5,6 +5,9 @@ import net.dv8tion.jda.api.interactions.Interaction;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.MDC;
 
+import java.util.UUID;
+import java.util.concurrent.ThreadFactory;
+
 @NullMarked
 public final class LoggingUtils {
     private LoggingUtils() {
@@ -24,6 +27,10 @@ public final class LoggingUtils {
 
     public static void setMDC(GuildManager guildManager) {
         MDC.put(GUILD, guildManager.getGuild().getName());
+    }
+
+    public static ThreadFactory serverThreadFactory(UUID serverId, String threadName) {
+        return runnable -> new Thread(runnable, threadName + " " + serverId);
     }
 
 }

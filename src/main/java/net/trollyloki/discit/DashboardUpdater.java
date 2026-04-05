@@ -41,6 +41,7 @@ import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.GREEN_ACCENT;
 import static net.trollyloki.discit.InteractionUtils.RED_ACCENT;
 import static net.trollyloki.discit.InteractionUtils.YELLOW_ACCENT;
+import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
@@ -79,7 +80,7 @@ public class DashboardUpdater {
         this.guildManager = guildManager;
         this.serverId = serverId;
 
-        this.executor = Executors.newSingleThreadExecutor();
+        this.executor = Executors.newSingleThreadExecutor(serverThreadFactory(serverId, "Dashboard Update Thread"));
 
         this.authenticated = authenticated;
     }

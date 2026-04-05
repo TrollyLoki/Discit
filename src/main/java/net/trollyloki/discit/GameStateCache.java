@@ -10,11 +10,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 
 @NullMarked
@@ -39,11 +41,11 @@ public class GameStateCache {
     private @Nullable ServerGameState gameState;
     private @Nullable String message;
 
-    public GameStateCache(GuildManager guildManager, Server server) {
+    public GameStateCache(GuildManager guildManager, UUID serverId, Server server) {
         this.guildManager = guildManager;
         this.server = server;
 
-        this.executor = Executors.newSingleThreadScheduledExecutor();
+        this.executor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "Game State Query Thread"));
     }
 
     public void shutdownNow() {

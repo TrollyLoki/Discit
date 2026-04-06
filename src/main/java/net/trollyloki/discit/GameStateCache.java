@@ -27,8 +27,15 @@ public class GameStateCache {
 
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(3);
 
-    private static long retryAfterMillis(long errorCount) {
-        return Math.min(errorCount * 500, 10_000);
+    private static long retryAfterMillis(int errorCount) {
+        return switch (errorCount) {
+            case 0 -> 0;
+            case 1 -> 500;
+            case 2 -> 1_000;
+            case 3 -> 2_000;
+            case 4 -> 5_000;
+            default -> 10_000;
+        };
     }
 
     private final GuildManager guildManager;
@@ -36,7 +43,7 @@ public class GameStateCache {
 
     private final ScheduledExecutorService executor;
 
-    private long errorCount;
+    private int errorCount;
 
     private @Nullable Future<?> future;
     private @Nullable ServerGameState gameState;

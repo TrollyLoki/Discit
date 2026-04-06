@@ -29,9 +29,11 @@ public class ServerMonitor implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerMonitor.class);
 
-    private static final Duration
-            POLL_INTERVAL = Duration.ofMillis(500),
-            OFFLINE_TIMEOUT = Duration.ofSeconds(5);
+    private static final long
+            POLL_INTERVAL_MILLIS = Duration.ofMillis(500).toMillis(),
+            OFFLINE_TIMEOUT_MILLIS = Duration.ofSeconds(5).toMillis(),
+            DEAD_TIMEOUT_NANOS = Duration.ofMinutes(1).toNanos(),
+            DEAD_POLL_INTERVAL_MILLIS = Duration.ofSeconds(10).toMillis();
 
     private final GuildManager guildManager;
     private final UUID serverId;
@@ -49,6 +51,7 @@ public class ServerMonitor implements Closeable {
     private @Nullable ScheduledFuture<?> offlineFuture;
     private @Nullable ScheduledFuture<?> offlineAlertFuture;
 
+    private volatile long lastResponseNanos = System.nanoTime();
     private @Nullable ServerStatus lastStatus;
     private short lastGameStateVersion;
 
@@ -66,7 +69,7 @@ public class ServerMonitor implements Closeable {
         dashboardUpdater = new DashboardUpdater(guildManager, serverId, server.hasToken());
 
         requestServerStateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "State Request Thread"));
-        requestServerStateExecutor.scheduleAtFixedRate(this::requestServerState, 0, POLL_INTERVAL.toNanos(), TimeUnit.NANOSECONDS);
+        requestServerStateExecutor.submit(this::requestServerState);
 
         receiveServerStateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "State Receive Thread"));
         receiveServerStateExecutor.scheduleWithFixedDelay(this::receiveServerState, 0, 1, TimeUnit.NANOSECONDS);
@@ -114,6 +117,13 @@ public class ServerMonitor implements Closeable {
         } catch (Exception e) {
             LOGGER.warn("Unexpected exception while requesting server state for {}", serverNameForLog(server), e);
         }
+
+        requestServerStateExecutor.schedule(this::requestServerState,
+                (System.nanoTime() - lastResponseNanos) > DEAD_TIMEOUT_NANOS
+                        ? DEAD_POLL_INTERVAL_MILLIS
+                        : POLL_INTERVAL_MILLIS,
+                TimeUnit.MILLISECONDS
+        );
     }
 
     private void receiveServerState() {
@@ -121,7 +131,8 @@ public class ServerMonitor implements Closeable {
             setMDC(guildManager);
 
             ServerStatePayload response = getQueryApi().receiveServerState();
-            Duration ping = Duration.ofNanos(System.nanoTime() - response.cookie());
+            lastResponseNanos = System.nanoTime();
+            Duration ping = Duration.ofNanos(lastResponseNanos - response.cookie());
             ServerState state = response.state();
 
             String name = state.name();
@@ -176,7 +187,8 @@ public class ServerMonitor implements Closeable {
         offlineFuture = updateExecutor.schedule(() -> {
             setMDC(guildManager);
 
-            LOGGER.info("No state responses from {} have been received in a while", serverNameForLog(server));
+            long millis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
+            LOGGER.info("No state responses from {} have been received in the last {} milliseconds", serverNameForLog(server), millis);
 
             if (lastStatus == ServerStatus.PLAYING) {
                 gameStateCache.reset();
@@ -187,7 +199,7 @@ public class ServerMonitor implements Closeable {
 
             updateDashboardInfo(ServerStatus.OFFLINE, null);
 
-        }, OFFLINE_TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
+        }, OFFLINE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     private void updateDashboardInfo(ServerStatus status, @Nullable Duration ping) {

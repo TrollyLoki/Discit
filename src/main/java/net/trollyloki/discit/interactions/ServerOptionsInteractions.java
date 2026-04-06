@@ -24,6 +24,7 @@ import org.slf4j.MDC;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
@@ -207,13 +208,13 @@ public final class ServerOptionsInteractions {
     }
 
     private static Button booleanButton(String serverIdString, ServerOptions options, String key) {
-        String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, key);
+        Function<String, String> buildId = value -> buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, key, value);
         String optionName = getOptionName(key);
 
         if ("true".equalsIgnoreCase(getPendingOrCurrentValue(options, key))) {
-            return Button.secondary(buildId(customId, "false"), optionName).withEmoji(CHECKBOX_CHECKED_EMOJI);
+            return Button.secondary(buildId.apply("false"), optionName).withEmoji(CHECKBOX_CHECKED_EMOJI);
         } else {
-            return Button.secondary(buildId(customId, "true"), optionName).withEmoji(CHECKBOX_EMPTY_EMOJI);
+            return Button.secondary(buildId.apply("true"), optionName).withEmoji(CHECKBOX_EMPTY_EMOJI);
         }
     }
 

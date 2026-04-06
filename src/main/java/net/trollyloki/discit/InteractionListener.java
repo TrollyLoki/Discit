@@ -50,7 +50,17 @@ public class InteractionListener extends ListenerAdapter {
             DASHBOARD_REFRESH_BUTTON_ID = "dashboard-refresh";
 
     public static String buildId(Object... arguments) {
-        return Arrays.stream(arguments).map(Object::toString).collect(Collectors.joining(":"));
+        return Arrays.stream(arguments).map(Object::toString)
+                .map(string -> string.replaceAll(":", "\\\\:"))
+                .collect(Collectors.joining(":"));
+    }
+
+    private static String[] splitId(String id) {
+        String[] split = id.split("(?<!\\\\):");
+        for (int i = 0; i < split.length; i++) {
+            split[i] = split[i].replaceAll("\\\\:", ":");
+        }
+        return split;
     }
 
     @Override
@@ -81,7 +91,7 @@ public class InteractionListener extends ListenerAdapter {
     @Override
     public void onEntitySelectInteraction(EntitySelectInteractionEvent event) {
         setMDC(event);
-        String[] id = event.getComponentId().split(":");
+        String[] id = splitId(event.getComponentId());
         switch (id[0]) {
             case ADMIN_ROLE_SELECT_ID -> onAdminRoleSelect(event);
             case DASHBOARD_CHANNEL_SELECT_ID -> onDashboardChannelSelect(event);
@@ -93,7 +103,7 @@ public class InteractionListener extends ListenerAdapter {
     @Override
     public void onButtonInteraction(ButtonInteractionEvent event) {
         setMDC(event);
-        String[] id = event.getComponentId().split(":");
+        String[] id = splitId(event.getComponentId());
         switch (id[0]) {
             case CANCEL_BUTTON_ID -> onCancelButton(event);
             case ADD_RETRY_BUTTON_ID -> onRetryButton(event, id[1], Integer.parseInt(id[2]));
@@ -121,7 +131,7 @@ public class InteractionListener extends ListenerAdapter {
     @Override
     public void onStringSelectInteraction(StringSelectInteractionEvent event) {
         setMDC(event);
-        String[] id = event.getComponentId().split(":");
+        String[] id = splitId(event.getComponentId());
         switch (id[0]) {
             case OFFLINE_ALERT_DELAY_SELECT_ID -> onOfflineAlertDelaySelect(event);
             case LIST_SELECT_ID -> onListSelect(event);
@@ -135,7 +145,7 @@ public class InteractionListener extends ListenerAdapter {
     @Override
     public void onModalInteraction(ModalInteractionEvent event) {
         setMDC(event);
-        String[] id = event.getModalId().split(":");
+        String[] id = splitId(event.getModalId());
         switch (id[0]) {
             case CLAIM_MODAL_ID -> onClaimModal(event, id[1]);
             case AUTHENTICATE_MODAL_ID -> onAuthenticateModal(event, id[1], Boolean.parseBoolean(id[2]));

@@ -77,7 +77,7 @@ public final class AddInteractions {
             return;
         }
 
-        LOGGER.info("Connecting to {}:{}", host, port);
+        LOGGER.info("Connecting to host \"{}\" port {}", host, port);
 
         CompletableFuture.runAsync(() -> {
             try (QueryApi queryApi = QueryApi.of(address, port, Duration.ofSeconds(3))) {

@@ -296,7 +296,7 @@ public final class InteractionUtils {
             } else {
                 message = "Failed" + message;
                 MDC.setContextMap(mdc);
-                LOGGER.warn("Failed to execute request on {}", serverNameForLog(server), exception.getCause());
+                LOGGER.warn("Failed to execute request on {}", serverNameForLog(server.getName()), exception.getCause());
             }
             // Rethrowing specifically a CompletionException here prevents it from being doubly wrapped
             throw new CompletionException(message, exception.getCause());

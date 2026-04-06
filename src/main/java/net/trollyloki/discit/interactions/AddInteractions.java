@@ -33,8 +33,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static net.trollyloki.discit.AddressUtils.validateHostAddress;
+import static net.trollyloki.discit.FormattingUtils.escapedServerName;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.CANCEL_BUTTON_ID;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
@@ -88,7 +88,7 @@ public final class AddInteractions {
                 hook.editOriginalComponents(
                         TextDisplay.of("Is this the server you are trying to add?"),
                         Container.of(
-                                TextDisplay.of("## " + serverDisplayName(serverState.name())),
+                                TextDisplay.of("## " + escapedServerName(serverState.name())),
                                 TextDisplay.of("### Fingerprint\n```" + fingerprint + "```"),
                                 TextDisplay.of("### Build Version\n```" + serverState.build() + "```")
                         ),

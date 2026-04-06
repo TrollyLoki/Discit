@@ -99,7 +99,7 @@ public final class ChangePasswordInteractions {
 
         event.deferReply(true).queue();
 
-        LOGGER.info("{} {} for {}", password.isEmpty() ? "Removing" : "Changing", typeLower, serverNameForLog(server));
+        LOGGER.info("{} {} for {}", password.isEmpty() ? "Removing" : "Changing", typeLower, serverNameForLog(server.getName()));
 
         String action = password.isEmpty() ? "remove" : "change";
         requestAsync(server, action + " " + typeLower + " for", httpsApi -> {

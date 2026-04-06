@@ -32,7 +32,9 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static net.trollyloki.discit.FormattingUtils.formatDuration;
+import static net.trollyloki.discit.FormattingUtils.escapeAll;
+import static net.trollyloki.discit.FormattingUtils.formatGameDuration;
+import static net.trollyloki.discit.FormattingUtils.safeMonospace;
 import static net.trollyloki.discit.InteractionUtils.findMessageAttachments;
 
 @NullMarked
@@ -158,7 +160,7 @@ public final class AnalyzeSaveInteractions {
         }
 
         public TextDisplay toTextDisplay() {
-            return TextDisplay.ofFormat("%s `%s` %s", status.getEmoji().getFormatted(), name, switch (status) {
+            return TextDisplay.ofFormat("%s %s %s", status.getEmoji().getFormatted(), safeMonospace(name), switch (status) {
                 case NONE -> "is not a save file";
                 case UNKNOWN -> "has an unknown checksum";
                 case INVALID -> "has an invalid checksum";
@@ -187,7 +189,7 @@ public final class AnalyzeSaveInteractions {
             zipStream.closeEntry();
         }
 
-        TextDisplay header = TextDisplay.of("## " + filename);
+        TextDisplay header = TextDisplay.of("## " + escapeAll(filename));
 
         if (entries.isEmpty()) {
             return List.of(header, TextDisplay.of("*empty*"));
@@ -224,15 +226,15 @@ public final class AnalyzeSaveInteractions {
     private static List<ContainerChildComponent> saveFileInfoComponents(SaveFileInfo info) {
         List<ContainerChildComponent> components = new ArrayList<>();
 
-        String header = "## " + info.header().saveName() + "\nCreated " + TimeFormat.DEFAULT.format(info.header().saveTimestamp());
+        String header = "## " + escapeAll(info.header().saveName()) + "\nCreated " + TimeFormat.DEFAULT.format(info.header().saveTimestamp());
         if (info.originalSaveName() != null) {
-            header += " as " + info.originalSaveName();
+            header += " as " + escapeAll(info.originalSaveName());
         }
         components.add(TextDisplay.of(header));
 
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
-        components.add(TextDisplay.of("### " + info.header().sessionName()));
-        components.add(TextDisplay.of("**Game Duration**\n" + formatDuration(info.header().playDuration())));
+        components.add(TextDisplay.of("### " + escapeAll(info.header().sessionName())));
+        components.add(TextDisplay.of("**Game Duration**\n" + formatGameDuration(info.header().playDuration())));
         components.add(TextDisplay.of("**Advanced Game Settings Enabled**\n" + (info.header().isAdvancedGameSettingsEnabled() ? "Yes" : "No")));
         components.add(TextDisplay.of("**Modded**\n" + (info.header().isModded() ? "Yes" : "No")));
 
@@ -240,6 +242,7 @@ public final class AnalyzeSaveInteractions {
         if (mods != null) {
             components.add(TextDisplay.of("### Mods\n" + (
                     mods.isEmpty() ? "*Unknown*" : mods.stream().map(mod ->
+                            // escaping special characters with backslashes doesn't seem to work within masked links
                             "- [%s %s](https://ficsit.app/mod/%s)".formatted(mod.name(), mod.version(), mod.reference())
                     ).collect(Collectors.joining("\n"))
             )));

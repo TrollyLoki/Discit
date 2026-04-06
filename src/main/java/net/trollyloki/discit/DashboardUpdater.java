@@ -34,8 +34,9 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static net.trollyloki.discit.FormattingUtils.formatDuration;
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+import static net.trollyloki.discit.FormattingUtils.escapeAll;
+import static net.trollyloki.discit.FormattingUtils.escapedServerName;
+import static net.trollyloki.discit.FormattingUtils.formatGameDuration;
 import static net.trollyloki.discit.InteractionListener.DASHBOARD_REFRESH_BUTTON_ID;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.GREEN_ACCENT;
@@ -216,7 +217,7 @@ public class DashboardUpdater {
     private Container createContainer() {
         List<ContainerChildComponent> components = new ArrayList<>();
 
-        components.add(TextDisplay.of("## " + serverDisplayName(name)));
+        components.add(TextDisplay.of("## " + escapedServerName(name)));
         components.add(TextDisplay.of(status != null ? status.toString() : "Unknown"));
 
         if (message != null) {
@@ -226,8 +227,8 @@ public class DashboardUpdater {
 
         if (gameState != null) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
-            components.add(TextDisplay.of("### " + gameState.activeSessionName()));
-            components.add(TextDisplay.of("**Game Duration**\n" + formatDuration(gameState.totalGameDuration())));
+            components.add(TextDisplay.of("### " + escapeAll(gameState.activeSessionName())));
+            components.add(TextDisplay.of("**Game Duration**\n" + formatGameDuration(gameState.totalGameDuration())));
             components.add(TextDisplay.of("### Current Players\n" + gameState.connectedPlayerCount() + "/" + gameState.playerLimit()));
             components.add(TextDisplay.of("### Average Tick Rate\n" + gameState.averageTickRate()));
         }

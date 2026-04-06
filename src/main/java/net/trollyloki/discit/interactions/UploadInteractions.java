@@ -206,7 +206,7 @@ public final class UploadInteractions {
                 final int index = i;
                 Server server = servers.get(index);
 
-                LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server));
+                LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server.getName()));
 
                 requestAsync(server, "upload " + file + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {

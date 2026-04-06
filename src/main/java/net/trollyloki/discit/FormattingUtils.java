@@ -20,8 +20,16 @@ public final class FormattingUtils {
         return sessionName + "_" + SAVE_NAME_DATE_TIME_FORMATTER.format(dateTime);
     }
 
-    public static String formatDuration(Duration duration) {
+    public static String formatGameDuration(Duration duration) {
         return String.format("%,d:%02d:%02d", duration.toHours(), duration.toMinutesPart(), duration.toSecondsPart());
+    }
+
+    public static String escapeAll(String text) {
+        return text.replaceAll("([\\\\*_`|~#<@>\\[\\]()\\-.])", "\\\\$1");
+    }
+
+    public static String safeMonospace(String text) {
+        return '`' + text.replaceAll("`", "") + '`';
     }
 
     public static String serverDisplayName(@Nullable String serverName) {
@@ -30,8 +38,12 @@ public final class FormattingUtils {
         else return serverName;
     }
 
+    public static String escapedServerName(@Nullable String serverName) {
+        return serverDisplayName(serverName == null ? null : escapeAll(serverName));
+    }
+
     public static String inlineServerDisplayName(@Nullable String serverName) {
-        return "**" + serverDisplayName(serverName) + "**";
+        return "**" + escapedServerName(serverName) + "**";
     }
 
     public static String formatDuration(long totalSeconds) {

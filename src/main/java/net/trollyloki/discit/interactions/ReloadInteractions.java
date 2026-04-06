@@ -86,7 +86,7 @@ public final class ReloadInteractions {
             final int index = i;
             Server server = servers.get(index);
 
-            LOGGER.info("Reloading {}", serverNameForLog(server));
+            LOGGER.info("Reloading {}", serverNameForLog(server.getName()));
 
             requestAsync(server, "reload", httpsApi -> {
                 httpsApi.save(RELOAD_SAVE_NAME);

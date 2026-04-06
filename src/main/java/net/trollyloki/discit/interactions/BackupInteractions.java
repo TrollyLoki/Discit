@@ -125,7 +125,7 @@ public final class BackupInteractions {
                     Server server = serverArray[entry.getKey()];
                     SaveInfo saveInfo = entry.getValue();
 
-                    LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server));
+                    LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
 
                     try (InputStream saveData = server.httpsApi(Duration.ofSeconds(3)).downloadSave(saveInfo.name())) {
                         zipStream.putNextEntry(new ZipEntry(saveInfo.name() + SaveFileReader.EXTENSION));

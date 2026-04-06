@@ -32,7 +32,7 @@ public final class InvalidateTokensInteractions {
 
         event.deferReply(true).queue();
 
-        LOGGER.info("Invalidating all API tokens for {}", serverNameForLog(server));
+        LOGGER.info("Invalidating all API tokens for {}", serverNameForLog(server.getName()));
 
         requestAsync(server, "invalidate all API tokens for", InteractionUtils::invalidateTokens).thenApplyAsync(result -> {
             if (result.success()) {

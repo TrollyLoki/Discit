@@ -26,8 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import static net.trollyloki.discit.FormattingUtils.escapeAll;
+import static net.trollyloki.discit.FormattingUtils.escapedServerName;
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
@@ -203,7 +204,7 @@ public final class ServerOptionsInteractions {
 
     private static Container optionsContainer(String serverIdString, @Nullable String serverName, OptionsInfo optionsInfo) {
         return Container.of(
-                TextDisplay.of("# Server Options\n## " + serverDisplayName(serverName)),
+                TextDisplay.of("# Server Options\n## " + escapedServerName(serverName)),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 TextDisplay.of("### Dedicated Server"),
                 TextDisplay.of(AUTOLOAD_SESSION_NAME),
@@ -254,14 +255,14 @@ public final class ServerOptionsInteractions {
         event.deferEdit().queue();
 
         String autoloadSessionName = event.getValues().get(0);
-        LOGGER.info("Setting auto-load session name for {} to \"{}\"", serverNameForLog(server), autoloadSessionName);
+        LOGGER.info("Setting auto-load session name for {} to \"{}\"", serverNameForLog(server.getName()), autoloadSessionName);
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "set auto-load session name for", httpsApi -> {
             httpsApi.setAutoLoadSessionName(autoloadSessionName);
             return OptionsInfo.get(httpsApi);
         }).thenAcceptAsync(optionsInfo -> {
-            logActionWithServer(event, "set " + AUTOLOAD_SESSION_NAME + " to " + autoloadSessionName + " for", server.getName());
+            logActionWithServer(event, "set " + AUTOLOAD_SESSION_NAME + " to " + escapeAll(autoloadSessionName) + " for", server.getName());
 
             MDC.setContextMap(mdc);
             event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
@@ -289,7 +290,7 @@ public final class ServerOptionsInteractions {
         interaction.deferEdit().queue();
 
         Map<String, String> options = Map.of(key, value);
-        LOGGER.info("Applying server options {} to {}", options, serverNameForLog(server));
+        LOGGER.info("Applying server options {} to {}", options, serverNameForLog(server.getName()));
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         requestAsync(server, "apply server options to", httpsApi -> {

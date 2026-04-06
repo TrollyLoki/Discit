@@ -72,10 +72,10 @@ public class GameStateCache {
 
     public synchronized void reset() {
         if (future != null && !future.isDone()) {
-            LOGGER.info("Cancelling game state query and clearing cached game state for {}", serverNameForLog(server));
+            LOGGER.info("Cancelling game state query and clearing cached game state for {}", serverNameForLog(server.getName()));
             future.cancel(true);
         } else {
-            LOGGER.info("Clearing cached game state for {}", serverNameForLog(server));
+            LOGGER.info("Clearing cached game state for {}", serverNameForLog(server.getName()));
         }
 
         this.gameState = null;
@@ -99,7 +99,7 @@ public class GameStateCache {
 
     private void query() {
         setMDC(guildManager);
-        LOGGER.info("Querying game state of {}", serverNameForLog(server));
+        LOGGER.info("Querying game state of {}", serverNameForLog(server.getName()));
 
         try {
             HttpsApi httpsApi = server.httpsApi(QUERY_TIMEOUT);
@@ -114,12 +114,12 @@ public class GameStateCache {
             return;
 
         } catch (ApiException e) {
-            LOGGER.warn("Unable to query game state of {}: {}", serverNameForLog(server), e.getMessage());
+            LOGGER.warn("Unable to query game state of {}: {}", serverNameForLog(server.getName()), e.getMessage());
 
             set(null, "Unable to query game state: " + e.getMessage());
 
         } catch (Exception e) {
-            LOGGER.warn("Failed to query game state of {}", serverNameForLog(server), e);
+            LOGGER.warn("Failed to query game state of {}", serverNameForLog(server.getName()), e);
 
             set(null, "Failed to query game state");
 

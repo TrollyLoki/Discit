@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
+import static net.trollyloki.discit.FormattingUtils.safeMonospace;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
@@ -96,17 +97,18 @@ public final class SaveInteractions {
 
         event.deferReply(isDashboard(event)).queue();
 
-        LOGGER.info("Saving {} as \"{}\"", serverNameForLog(server), saveName);
+        LOGGER.info("Saving {} as \"{}\"", serverNameForLog(server.getName()), saveName);
 
         Map<String, String> mdc = MDC.getCopyOfContextMap();
         saveAsync(server, saveName).thenComposeAsync(saveInfo -> {
 
-            event.getHook().editOriginal("Downloading `" + saveInfo.name() + SaveFileReader.EXTENSION + "` from " + inlineServerDisplayName(server.getName()) + "...").queue();
+            String monospaceFilename = safeMonospace(saveInfo.name() + SaveFileReader.EXTENSION);
+            event.getHook().editOriginal("Downloading " + monospaceFilename + " from " + inlineServerDisplayName(server.getName()) + "...").queue();
 
             MDC.setContextMap(mdc);
-            LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server));
+            LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
 
-            return requestAsync(server, "download `" + saveInfo.name() + SaveFileReader.EXTENSION + "` from", httpsApi -> {
+            return requestAsync(server, "download " + monospaceFilename + " from", httpsApi -> {
                 return new SaveDownload(saveInfo, httpsApi.downloadSave(saveInfo.name()));
             });
 

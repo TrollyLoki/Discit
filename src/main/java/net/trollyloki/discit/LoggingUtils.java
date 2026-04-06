@@ -35,10 +35,6 @@ public final class LoggingUtils {
         else return '"' + serverName + '"';
     }
 
-    public static @Nullable String serverNameForLog(Server server) {
-        return serverNameForLog(server.getName());
-    }
-
     public static ThreadFactory serverThreadFactory(UUID serverId, String threadName) {
         return runnable -> new Thread(runnable, threadName + " " + serverId);
     }

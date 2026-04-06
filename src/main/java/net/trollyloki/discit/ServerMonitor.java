@@ -93,7 +93,7 @@ public class ServerMonitor implements Closeable {
         updateExecutor.shutdownNow();
 
         if (queryApi != null) {
-            LOGGER.info("Closing monitor socket for {}", serverNameForLog(server));
+            LOGGER.info("Closing monitor socket for {}", serverNameForLog(server.getName()));
             queryApi.close();
         }
 
@@ -115,7 +115,7 @@ public class ServerMonitor implements Closeable {
             getQueryApi().requestServerState(System.nanoTime());
 
         } catch (Exception e) {
-            LOGGER.warn("Unexpected exception while requesting server state for {}", serverNameForLog(server), e);
+            LOGGER.warn("Unexpected exception while requesting server state for {}", serverNameForLog(server.getName()), e);
         }
 
         requestServerStateExecutor.schedule(this::requestServerState,
@@ -148,7 +148,7 @@ public class ServerMonitor implements Closeable {
             Duration alertDelay = guildManager.getOfflineAlertDelay();
             if (alertDelay != null) {
                 offlineAlertFuture = updateExecutor.schedule(
-                        () -> guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went offline"),
+                        () -> guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down"),
                         alertDelay.toNanos(), TimeUnit.NANOSECONDS
                 );
             }
@@ -162,7 +162,7 @@ public class ServerMonitor implements Closeable {
                 }
 
                 if (status != lastStatus || gameStateVersion != lastGameStateVersion) {
-                    LOGGER.info("New state response from {}: \"{}\" {}", serverNameForLog(server), status, gameStateVersion);
+                    LOGGER.info("New state response from {}: \"{}\" {}", serverNameForLog(server.getName()), status, gameStateVersion);
 
                     if (status != lastStatus && lastStatus == ServerStatus.PLAYING) {
                         gameStateCache.reset();
@@ -179,7 +179,7 @@ public class ServerMonitor implements Closeable {
             });
 
         } catch (Exception e) {
-            LOGGER.warn("Unexpected exception while receiving server state for {}", serverNameForLog(server), e);
+            LOGGER.warn("Unexpected exception while receiving server state for {}", serverNameForLog(server.getName()), e);
         }
     }
 
@@ -188,7 +188,7 @@ public class ServerMonitor implements Closeable {
             setMDC(guildManager);
 
             long millis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
-            LOGGER.info("No state responses from {} have been received in the last {} milliseconds", serverNameForLog(server), millis);
+            LOGGER.info("No state responses from {} have been received in the last {} milliseconds", serverNameForLog(server.getName()), millis);
 
             if (lastStatus == ServerStatus.PLAYING) {
                 gameStateCache.reset();

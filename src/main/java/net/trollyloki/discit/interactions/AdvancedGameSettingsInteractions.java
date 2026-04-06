@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+import static net.trollyloki.discit.FormattingUtils.escapedServerName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
@@ -96,7 +96,7 @@ public final class AdvancedGameSettingsInteractions {
     }
 
     private static Container settingsContainer(String serverIdString, @Nullable String serverName, AdvancedGameSettings ags) {
-        String header = "# Advanced Game Settings\n## " + serverDisplayName(serverName);
+        String header = "# Advanced Game Settings\n## " + escapedServerName(serverName);
         if (!ags.enabled()) {
             header += "\n" + WARNING_EMOJI.getFormatted() + " Advanced Game Settings are not currently enabled. Interacting with any of the below controls will automatically enable them for the current session.";
         }
@@ -164,7 +164,7 @@ public final class AdvancedGameSettingsInteractions {
         interaction.deferEdit().queue();
 
         Map<String, String> settings = Map.of(key, value);
-        LOGGER.info("Applying Advanced Game Settings {} on {}", settings, serverNameForLog(server));
+        LOGGER.info("Applying Advanced Game Settings {} on {}", settings, serverNameForLog(server.getName()));
 
         requestAsync(server, "apply Advanced Game Settings on", httpsApi -> {
             httpsApi.applyAdvancedGameSettings(settings);

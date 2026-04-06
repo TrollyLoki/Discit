@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
@@ -124,87 +125,93 @@ public final class ServerOptionsInteractions {
         return selectMenu.build();
     }
 
+    private static StringSelectMenu createIntSelectMenu(String customId, IntFunction<String> labelFunction, int current, int[] ascendingOptions) {
+        int maxOptions = StringSelectMenu.OPTIONS_MAX_AMOUNT - 1;
+        if (ascendingOptions.length > maxOptions) {
+            throw new IllegalArgumentException("Too many options: " + ascendingOptions.length + " > " + maxOptions);
+        }
+
+        StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
+
+        boolean currentAdded = false;
+        for (int value : ascendingOptions) {
+
+            if (!currentAdded && value >= current) {
+                if (value != current) {
+                    // Insert the current value before this value
+                    selectMenu.addOption(labelFunction.apply(current), Integer.toString(current));
+                }
+                currentAdded = true;
+            }
+
+            selectMenu.addOption(labelFunction.apply(value), Integer.toString(value));
+        }
+        if (!currentAdded) {
+            // Insert the current value at the end since it must be bigger than every other option
+            selectMenu.addOption(labelFunction.apply(current), Integer.toString(current));
+        }
+
+        return selectMenu.setDefaultValues(Integer.toString(current)).build();
+    }
+
     private static String formatInterval(int totalSeconds) {
         if (totalSeconds <= 0) return "Off";
         else return formatDuration(totalSeconds);
+    }
+
+    private static final int[] AUTOSAVE_INTERVAL_OPTIONS;
+
+    static {
+        ArrayList<Integer> options = new ArrayList<>(StringSelectMenu.OPTIONS_MAX_AMOUNT - 1);
+        int seconds = 0;
+
+        // 5-minute intervals up to an hour
+        for (; seconds < 60 * 60; seconds += 5 * 60) options.add(seconds);
+
+        // 15-minute intervals up to 2 hours
+        for (; seconds < 2 * 60 * 60; seconds += 15 * 60) options.add(seconds);
+
+        // 30-minute intervals up to 4 hours
+        for (; seconds < 4 * 60 * 60; seconds += 30 * 60) options.add(seconds);
+        options.add(seconds);
+
+        // finally whole hour intervals
+        options.add(5 * 60 * 60);
+        options.add(6 * 60 * 60);
+        options.add(8 * 60 * 60);
+
+        AUTOSAVE_INTERVAL_OPTIONS = new int[options.size()];
+        for (int i = 0; i < options.size(); i++) {
+            AUTOSAVE_INTERVAL_OPTIONS[i] = options.get(i);
+        }
     }
 
     private static StringSelectMenu autosaveIntervalSelectMenu(String serverIdString, ServerOptions options) {
         int current = (int) Float.parseFloat(getPendingOrCurrentValue(options, ServerOptions.AUTOSAVE_INTERVAL));
 
         String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, ServerOptions.AUTOSAVE_INTERVAL);
-        StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
-
-        selectMenu.addOption(formatInterval(0), "0");
-        boolean currentAdded = current == 0;
-        // Discord only allows a maximum of 25 options, and we need one for "Off" and possibly one for the current value
-        int seconds = 5 * 60;
-        for (int i = 2; i < StringSelectMenu.OPTIONS_MAX_AMOUNT; i++) {
-
-            // Insert the current value where it should be if necessary
-            if (!currentAdded) {
-                if (seconds > current) {
-                    // Insert the current value before this value
-                    selectMenu.addOption(formatInterval(current), Integer.toString(current));
-                    currentAdded = true;
-                } else {
-                    currentAdded = seconds == current;
-                }
-            }
-
-            selectMenu.addOption(formatInterval(seconds), Integer.toString(seconds));
-
-            // Options in 5-minute intervals up to an hour, then in 15-minute intervals up to 2 hours,
-            // then in 30-minute intervals up to 4 hours, then finally in whole hour intervals
-            if (seconds < 60 * 60) seconds += 5 * 60;
-            else if (seconds < 2 * 60 * 60) seconds += 15 * 60;
-            else if (seconds < 4 * 60 * 60) seconds += 30 * 60;
-            else seconds += 60 * 60;
-        }
-        if (!currentAdded) {
-            // Insert the current value at the end since it must be bigger than every other option
-            selectMenu.addOption(formatInterval(current), Integer.toString(current));
-        }
-        selectMenu.setDefaultValues(Integer.toString(current));
-
-        return selectMenu.build();
+        return createIntSelectMenu(customId, ServerOptionsInteractions::formatInterval, current, AUTOSAVE_INTERVAL_OPTIONS);
     }
 
     private static String formatRestartTime(int minutes) {
         return String.format("%02d:%02d", minutes / 60, minutes % 60);
     }
 
+    private static final int[] RESTART_SCHEDULE_OPTIONS;
+
+    static {
+        // An option for each hour (01:00 to 24:00)
+        RESTART_SCHEDULE_OPTIONS = new int[24];
+        for (int i = 0; i < RESTART_SCHEDULE_OPTIONS.length; i++) {
+            RESTART_SCHEDULE_OPTIONS[i] = (i + 1) * 60;
+        }
+    }
+
     private static StringSelectMenu restartScheduleSelectMenu(String serverIdString, ServerOptions options) {
         int current = (int) Float.parseFloat(getPendingOrCurrentValue(options, ServerOptions.SERVER_RESTART_SCHEDULE));
 
         String customId = buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, ServerOptions.SERVER_RESTART_SCHEDULE);
-        StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
-
-        boolean currentAdded = false;
-        // An option for each hour plus possibly one for the current value fits perfectly into the 25 option limit
-        for (int i = 1; i <= 24; i++) {
-            int minutes = 60 * i;
-
-            // Insert the current value where it should be if necessary
-            if (!currentAdded) {
-                if (minutes > current) {
-                    // Insert the current value before this value
-                    selectMenu.addOption(formatRestartTime(current), Integer.toString(current));
-                    currentAdded = true;
-                } else {
-                    currentAdded = minutes == current;
-                }
-            }
-
-            selectMenu.addOption(formatRestartTime(minutes), Integer.toString(minutes));
-        }
-        if (!currentAdded) {
-            // Insert the current value at the end since it must be bigger than every other option
-            selectMenu.addOption(formatRestartTime(current), Integer.toString(current));
-        }
-        selectMenu.setDefaultValues(Integer.toString(current));
-
-        return selectMenu.build();
+        return createIntSelectMenu(customId, ServerOptionsInteractions::formatRestartTime, current, RESTART_SCHEDULE_OPTIONS);
     }
 
     private static Button booleanButton(String serverIdString, ServerOptions options, String key) {

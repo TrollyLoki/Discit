@@ -24,6 +24,7 @@ import java.util.function.BiConsumer;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.InteractionUtils.cannotManageGuild;
+import static net.trollyloki.discit.InteractionUtils.createIntSelectMenu;
 import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.InteractionUtils.logAction;
 
@@ -39,7 +40,7 @@ public final class SettingsInteractions {
             LOG_CHANNEL_SELECT_ID = "log-channel",
             OFFLINE_ALERT_DELAY_SELECT_ID = "offline-alert-delay";
 
-    private static final int[] DELAY_OPTIONS_SECONDS = {5, 10, 30, 60, 60 * 5, 60 * 10, 60 * 30, 60 * 60};
+    private static final int[] DELAY_OPTIONS_SECONDS = {-1, 5, 10, 20, 30, 60, 2 * 60, 3 * 60, 4 * 60, 5 * 60, 10 * 60, 20 * 60, 30 * 60, 60 * 60};
 
     private static final List<ChannelType> GUILD_MESSAGE_CHANNEL_TYPES = ChannelType.guildTypes().stream().filter(ChannelType::isMessage).toList();
 
@@ -72,17 +73,11 @@ public final class SettingsInteractions {
             logChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentLogChannel));
         }
 
-        StringSelectMenu.Builder offlineAlertDelaySelect = StringSelectMenu.create(OFFLINE_ALERT_DELAY_SELECT_ID);
-        offlineAlertDelaySelect.addOption("Disable alerts", "null");
-        for (int seconds : DELAY_OPTIONS_SECONDS) {
-            offlineAlertDelaySelect.addOption(formatDuration(seconds), Integer.toString(seconds));
-        }
         Duration currentOfflineAlertDelay = guildManager.getOfflineAlertDelay();
-        if (currentOfflineAlertDelay != null) {
-            offlineAlertDelaySelect.setDefaultValues(Long.toString(currentOfflineAlertDelay.toSeconds()));
-        } else {
-            offlineAlertDelaySelect.setDefaultValues("null");
-        }
+        StringSelectMenu offlineAlertDelaySelect = createIntSelectMenu(OFFLINE_ALERT_DELAY_SELECT_ID, seconds -> {
+            if (seconds < 0) return "Disable alerts";
+            else return formatDuration(seconds);
+        }, currentOfflineAlertDelay == null ? -1 : (int) currentOfflineAlertDelay.toSeconds(), DELAY_OPTIONS_SECONDS);
 
         String title = "## Settings";
         if (event.getGuild() != null) {
@@ -105,7 +100,7 @@ public final class SettingsInteractions {
                 Separator.createInvisible(Separator.Spacing.LARGE),
                 TextDisplay.of("### Offline Alert Delay"),
                 TextDisplay.of("If a server goes and stays offline for this amount of time a message mentioning the administrator role will be sent to the log channel"),
-                ActionRow.of(offlineAlertDelaySelect.setPlaceholder("Select a duration").build())
+                ActionRow.of(offlineAlertDelaySelect)
         )).useComponentsV2().setEphemeral(true).queue();
     }
 
@@ -153,8 +148,8 @@ public final class SettingsInteractions {
         if (cannotManageGuild(event))
             return;
 
-        String value = event.getValues().get(0);
-        Duration duration = value.equals("null") ? null : Duration.ofSeconds(Long.parseLong(value));
+        int seconds = Integer.parseInt(event.getValues().get(0));
+        Duration duration = seconds < 0 ? null : Duration.ofSeconds(seconds);
 
         GuildManager guildManager = getGuildManager(event);
         guildManager.setOfflineAlertDelay(duration);

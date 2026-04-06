@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.IntFunction;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
@@ -123,35 +122,6 @@ public final class ServerOptionsInteractions {
         selectMenu.setDefaultValues(current);
 
         return selectMenu.build();
-    }
-
-    private static StringSelectMenu createIntSelectMenu(String customId, IntFunction<String> labelFunction, int current, int[] ascendingOptions) {
-        int maxOptions = StringSelectMenu.OPTIONS_MAX_AMOUNT - 1;
-        if (ascendingOptions.length > maxOptions) {
-            throw new IllegalArgumentException("Too many options: " + ascendingOptions.length + " > " + maxOptions);
-        }
-
-        StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
-
-        boolean currentAdded = false;
-        for (int value : ascendingOptions) {
-
-            if (!currentAdded && value >= current) {
-                if (value != current) {
-                    // Insert the current value before this value
-                    selectMenu.addOption(labelFunction.apply(current), Integer.toString(current));
-                }
-                currentAdded = true;
-            }
-
-            selectMenu.addOption(labelFunction.apply(value), Integer.toString(value));
-        }
-        if (!currentAdded) {
-            // Insert the current value at the end since it must be bigger than every other option
-            selectMenu.addOption(labelFunction.apply(current), Integer.toString(current));
-        }
-
-        return selectMenu.setDefaultValues(Integer.toString(current)).build();
     }
 
     private static String formatInterval(int totalSeconds) {

@@ -75,7 +75,7 @@ public final class LoggingUtils {
     }
 
     public static ThreadFactory serverThreadFactory(UUID serverId, String threadName) {
-        return runnable -> new Thread(runnable, threadName + " " + serverId);
+        return runnable -> new Thread(runnable, String.format("%-25s %s", threadName, serverId));
     }
 
 }

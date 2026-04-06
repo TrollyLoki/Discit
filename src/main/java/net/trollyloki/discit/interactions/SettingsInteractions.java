@@ -18,7 +18,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
@@ -109,8 +108,7 @@ public final class SettingsInteractions {
         if (selection == null)
             return;
 
-        event.reply("Administrator role set to " + selection.getAsMention())
-                .setAllowedMentions(Collections.emptySet()).setEphemeral(true).queue();
+        event.reply("Administrator role set to " + selection.getAsMention()).setEphemeral(true).queue();
         logAction(event, "set the administrator role to " + selection.getAsMention());
     }
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.Channel;
@@ -133,7 +134,7 @@ public class GuildManager {
         GuildMessageChannel channel = getLogChannel();
         if (channel == null) return;
 
-        channel.sendMessage(user.getAsMention() + " " + action).setAllowedMentions(Collections.emptySet()).queue();
+        channel.sendMessage(user.getAsMention() + " " + action).queue();
     }
 
     public void logAlert(String alert) {
@@ -144,7 +145,7 @@ public class GuildManager {
         Role role = getAdminRole();
         if (role != null) text += " " + getAdminRole().getAsMention();
 
-        channel.sendMessage(text).queue();
+        channel.sendMessage(text).setAllowedMentions(Collections.singleton(Message.MentionType.ROLE)).queue();
     }
 
     public boolean isDashboard(@Nullable Channel channel) {

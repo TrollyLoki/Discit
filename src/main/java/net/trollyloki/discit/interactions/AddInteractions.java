@@ -15,6 +15,7 @@ import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.CertificateUtils;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
@@ -24,7 +25,6 @@ import net.trollyloki.jicsit.server.query.ServerState;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.net.InetAddress;
 import java.time.Duration;
@@ -39,6 +39,7 @@ import static net.trollyloki.discit.InteractionListener.CANCEL_BUTTON_ID;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class AddInteractions {
@@ -79,7 +80,7 @@ public final class AddInteractions {
 
         LOGGER.info("Connecting to host \"{}\" port {}", host, port);
 
-        CompletableFuture.runAsync(() -> {
+        CompletableFuture.runAsync(withMDC(() -> {
             try (QueryApi queryApi = QueryApi.of(address, port, Duration.ofSeconds(3))) {
 
                 ServerState serverState = queryApi.pollServerState();
@@ -106,7 +107,7 @@ public final class AddInteractions {
                         )
                 ).useComponentsV2().queue();
             }
-        });
+        }));
     }
 
     public static void onRetryButton(ButtonInteractionEvent event, String host, int port) {
@@ -137,8 +138,7 @@ public final class AddInteractions {
         logAction(event, "added " + name);
 
         // Offer to claim the server if possible
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        CompletableFuture.runAsync(() -> {
+        CompletableFuture.runAsync(withMDC(() -> {
             try {
                 server.httpsApi(Duration.ofSeconds(3)).passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
 
@@ -153,10 +153,9 @@ public final class AddInteractions {
             } catch (PasswordlessLoginNotPossibleException e) {
                 // Could not log in as initial admin so the server must be claimed already
             } catch (Exception e) {
-                MDC.setContextMap(mdc);
                 LOGGER.warn("Failed to check if added server is claimed", e);
             }
-        });
+        }));
     }
 
     public static void onClaimButton(ButtonInteractionEvent event, String serverIdString) {
@@ -207,8 +206,7 @@ public final class AddInteractions {
 
         LOGGER.info("Claiming {}", serverNameForLog(name.getAsString()));
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        requestAsync(server, "claim", httpsApi -> {
+        requestAsyncWithMDC(server, "claim", httpsApi -> {
 
             httpsApi.setToken(null);
             httpsApi.passwordlessLogin(PrivilegeLevel.INITIAL_ADMIN);
@@ -216,8 +214,7 @@ public final class AddInteractions {
 
             if (authenticate != null && authenticate.getAsBoolean()) {
                 // Start the automatic authentication process
-                CompletableFuture.runAsync(() -> {
-                    MDC.setContextMap(mdc);
+                CompletableFuture.runAsync(withMDC(() -> {
                     try {
                         String token = generateToken(httpsApi);
                         verifyAndSetToken(event, serverIdString, token, name.getAsString());
@@ -225,15 +222,15 @@ public final class AddInteractions {
                         event.getHook().sendMessage("Automatic authentication failed").queue();
                         LOGGER.warn("Automatic authentication for {} failed", serverNameForLog(name.getAsString()), e);
                     }
-                });
+                }));
             }
 
-        }).thenApplyAsync(r -> {
+        }).thenApplyAsync(withMDC(r -> {
             logActionWithServer(event, "claimed", name.getAsString());
             return "Successfully claimed " + inlineServerDisplayName(name.getAsString());
-        }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginalComponents(TextDisplay.of(message)).useComponentsV2().queue();
-        });
+        }));
     }
 
 }

@@ -24,7 +24,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.awt.*;
 import java.time.Clock;
@@ -46,6 +45,7 @@ import static net.trollyloki.discit.FormattingUtils.defaultSaveName;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class InteractionUtils {
@@ -275,36 +275,52 @@ public final class InteractionUtils {
         return true;
     }
 
-    public static CompletableFuture<@Nullable Void> requestAsync(Server server, String actionString, Consumer<HttpsApi> action) {
-        return requestAsync(server, actionString, httpsApi -> {
+    public static CompletableFuture<@Nullable Void> requestAsyncWithMDC(Server server, String actionString, Consumer<HttpsApi> action) {
+        return requestAsyncWithMDC(server, actionString, httpsApi -> {
             action.accept(httpsApi);
             return null;
         });
     }
 
-    public static <T extends @Nullable Object> CompletableFuture<T> requestAsync(Server server, String actionString, Function<HttpsApi, T> action) {
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        return CompletableFuture.supplyAsync(() -> {
-            MDC.setContextMap(mdc);
+    public static <T extends @Nullable Object> CompletableFuture<T> requestAsyncWithMDC(Server server, String actionString, Function<HttpsApi, T> action) {
+        return CompletableFuture.supplyAsync(withMDC(() -> {
             HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
             return action.apply(httpsApi);
-        }).exceptionally(exception -> {
+        })).exceptionally(withMDC((Function<Throwable, T>) exception -> {
             String message = " to " + actionString + " " + inlineServerDisplayName(server.getName());
             // Thrown exceptions are always wrapped in a CompletionException
             if (exception.getCause() instanceof ApiException apiException) {
                 message = "Unable" + message + ": " + apiException.getMessage();
             } else {
                 message = "Failed" + message;
-                MDC.setContextMap(mdc);
                 LOGGER.warn("Failed to execute request on {}", serverNameForLog(server.getName()), exception.getCause());
             }
-            // Rethrowing specifically a CompletionException here prevents it from being doubly wrapped
-            throw new CompletionException(message, exception.getCause());
-        });
+            throw new FormattedException(message, exception.getCause());
+        }));
     }
 
-    public static CompletableFuture<SaveInfo> saveAsync(Server server, @Nullable String saveName) {
-        return requestAsync(server, "save", httpsApi -> {
+    private static class FormattedException extends RuntimeException {
+        private FormattedException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    public static String exceptionMessage(Throwable throwable) {
+        if (throwable instanceof CompletionException && throwable.getCause() != null) {
+            // Unwrap CompletionExceptions
+            throwable = throwable.getCause();
+        }
+
+        if (throwable instanceof FormattedException formatted) {
+            return formatted.getMessage();
+        } else {
+            LOGGER.error("Unexpected exception while processing interaction", throwable);
+            return "An unexpected error occurred";
+        }
+    }
+
+    public static CompletableFuture<SaveInfo> saveAsyncWithMDC(Server server, @Nullable String saveName) {
+        return requestAsyncWithMDC(server, "save", httpsApi -> {
 
             String actualSaveName = saveName;
             if (actualSaveName == null || actualSaveName.isBlank()) {

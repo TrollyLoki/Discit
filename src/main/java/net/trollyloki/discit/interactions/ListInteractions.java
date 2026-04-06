@@ -16,12 +16,12 @@ import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionE
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +34,7 @@ import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class ListInteractions {
@@ -163,26 +164,22 @@ public final class ListInteractions {
         if (type.getAsStringList().get(0).equals("password")) {
             LOGGER.info("Generating API token for {}", serverNameForLog(server.getName()));
 
-            tokenFuture = requestAsync(server, "generate token for", httpsApi -> {
-
+            tokenFuture = requestAsyncWithMDC(server, "generate token for", httpsApi -> {
                 // Convert password into token
                 httpsApi.setToken(null);
                 httpsApi.passwordLogin(PrivilegeLevel.ADMIN, authentication.getAsString());
                 return generateToken(httpsApi);
-
             });
-            tokenFuture.exceptionallyAsync(throwable -> {
-                event.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
+            tokenFuture.exceptionallyAsync(withMDC(throwable -> {
+                event.getHook().sendMessage(InteractionUtils.exceptionMessage(throwable)).setEphemeral(true).queue();
                 //noinspection DataFlowIssue: not actually returned to anything
                 return null;
-            });
+            }));
         } else {
             tokenFuture = CompletableFuture.completedFuture(authentication.getAsString());
         }
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        tokenFuture.thenAcceptAsync(token -> {
-            MDC.setContextMap(mdc);
+        tokenFuture.thenAcceptAsync(withMDC(token -> {
             if (!verifyAndSetToken(event, serverIdString, token, null))
                 return;
 
@@ -192,7 +189,7 @@ public final class ListInteractions {
                         serverSelectForDetails(event)
                 ).useComponentsV2().queue();
             }
-        });
+        }));
     }
 
     public static void onDeauthenticateButtonOnList(ButtonInteractionEvent event, String serverIdString) {

@@ -188,7 +188,7 @@ public class ServerMonitor implements Closeable {
             setMDC(guildManager);
 
             long millis = (System.nanoTime() - lastResponseNanos) / 1_000_000;
-            LOGGER.info("No state responses from {} have been received in the last {} milliseconds", serverNameForLog(server.getName()), millis);
+            LOGGER.info("No state responses from {} in the last {} milliseconds", serverNameForLog(server.getName()), millis);
 
             if (lastStatus == ServerStatus.PLAYING) {
                 gameStateCache.reset();

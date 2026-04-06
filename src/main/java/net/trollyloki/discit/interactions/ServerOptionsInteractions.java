@@ -9,6 +9,7 @@ import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.Session;
 import net.trollyloki.jicsit.server.https.HttpsApi;
@@ -19,7 +20,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +32,7 @@ import static net.trollyloki.discit.FormattingUtils.formatDuration;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class ServerOptionsInteractions {
@@ -234,17 +235,15 @@ public final class ServerOptionsInteractions {
 
         event.deferReply(true).queue();
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        requestAsync(server, "get server options for", OptionsInfo::get).thenAcceptAsync(optionsInfo -> {
+        requestAsyncWithMDC(server, "get server options for", OptionsInfo::get).thenAcceptAsync(withMDC(optionsInfo -> {
 
-            MDC.setContextMap(mdc);
             event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
                     .useComponentsV2().queue();
 
-        }).exceptionallyAsync(throwable -> {
-            event.getHook().editOriginal(throwable.getMessage()).queue();
+        })).exceptionallyAsync(withMDC(throwable -> {
+            event.getHook().editOriginal(InteractionUtils.exceptionMessage(throwable)).queue();
             return null;
-        });
+        }));
     }
 
     public static void onSetAutoloadSessionNameSelect(StringSelectInteractionEvent event, String serverIdString) {
@@ -257,21 +256,19 @@ public final class ServerOptionsInteractions {
         String autoloadSessionName = event.getValues().get(0);
         LOGGER.info("Setting auto-load session name for {} to \"{}\"", serverNameForLog(server.getName()), autoloadSessionName);
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        requestAsync(server, "set auto-load session name for", httpsApi -> {
+        requestAsyncWithMDC(server, "set auto-load session name for", httpsApi -> {
             httpsApi.setAutoLoadSessionName(autoloadSessionName);
             return OptionsInfo.get(httpsApi);
-        }).thenAcceptAsync(optionsInfo -> {
+        }).thenAcceptAsync(withMDC(optionsInfo -> {
             logActionWithServer(event, "set " + AUTOLOAD_SESSION_NAME + " to " + escapeAll(autoloadSessionName) + " for", server.getName());
 
-            MDC.setContextMap(mdc);
             event.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
                     .useComponentsV2().queue();
 
-        }).exceptionallyAsync(throwable -> {
-            event.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
+        })).exceptionallyAsync(withMDC(throwable -> {
+            event.getHook().sendMessage(InteractionUtils.exceptionMessage(throwable)).setEphemeral(true).queue();
             return null;
-        });
+        }));
     }
 
     public static void onSetServerOptionButton(ButtonInteractionEvent event, String serverIdString, String key, String value) {
@@ -292,11 +289,10 @@ public final class ServerOptionsInteractions {
         Map<String, String> options = Map.of(key, value);
         LOGGER.info("Applying server options {} to {}", options, serverNameForLog(server.getName()));
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        requestAsync(server, "apply server options to", httpsApi -> {
+        requestAsyncWithMDC(server, "apply server options to", httpsApi -> {
             httpsApi.applyServerOptions(options);
             return OptionsInfo.get(httpsApi);
-        }).thenAcceptAsync(optionsInfo -> {
+        }).thenAcceptAsync(withMDC(optionsInfo -> {
             String newValue = getPendingOrCurrentValue(optionsInfo.options, key);
 
             String formattedValue = switch (key) {
@@ -308,14 +304,13 @@ public final class ServerOptionsInteractions {
 
             logActionWithServer(interaction, "set " + getOptionName(key) + " to " + formattedValue + " for", server.getName());
 
-            MDC.setContextMap(mdc);
             interaction.getHook().editOriginalComponents(optionsContainer(serverIdString, server.getName(), optionsInfo))
                     .useComponentsV2().queue();
 
-        }).exceptionallyAsync(throwable -> {
-            interaction.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
+        })).exceptionallyAsync(withMDC(throwable -> {
+            interaction.getHook().sendMessage(InteractionUtils.exceptionMessage(throwable)).setEphemeral(true).queue();
             return null;
-        });
+        }));
     }
 
 }

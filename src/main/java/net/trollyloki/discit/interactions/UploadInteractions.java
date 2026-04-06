@@ -17,6 +17,7 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
 import net.trollyloki.discit.AttachmentCache;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
@@ -41,6 +42,7 @@ import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class UploadInteractions {
@@ -177,8 +179,7 @@ public final class UploadInteractions {
 
         event.deferReply(isDashboard(event)).queue();
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        attachment.download().thenAcceptAsync(downloadStream -> {
+        attachment.download().thenAcceptAsync(withMDC(downloadStream -> {
 
             List<String> messageLines = Collections.synchronizedList(servers.stream()
                     .map(server -> "Uploading " + file + " to " + inlineServerDisplayName(server.getName()) + "...")
@@ -187,13 +188,10 @@ public final class UploadInteractions {
             // No need to synchronize here, the list won't be changing yet
             event.getHook().editOriginal(String.join("\n", messageLines)).queue();
 
-            MDC.setContextMap(mdc);
-
             InputStream[] uploadStreams;
             try {
                 uploadStreams = splitInputStream(downloadStream, servers.size(), e -> {
                     event.getHook().editOriginal("Failed to transfer data").queue();
-                    MDC.setContextMap(mdc);
                     LOGGER.error("Error while streaming split save data", e);
                 });
             } catch (Exception e) {
@@ -208,29 +206,28 @@ public final class UploadInteractions {
 
                 LOGGER.info("Uploading save \"{}\" to {}", saveName, serverNameForLog(server.getName()));
 
-                requestAsync(server, "upload " + file + " to", httpsApi -> {
+                requestAsyncWithMDC(server, "upload " + file + " to", httpsApi -> {
                     try (InputStream uploadStream = uploadStreams[index]) {
                         httpsApi.uploadSave(uploadStream, saveName, load, loadCreative);
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                }).thenApplyAsync(r -> {
+                }).thenApplyAsync(withMDC(r -> {
                     String result = load ? "loaded " + file + " on" : "uploaded " + file + " to";
                     logActionWithServer(event, result, server.getName());
                     return "Successfully " + result + " " + inlineServerDisplayName(server.getName());
-                }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+                })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                     messageLines.set(index, message);
                     synchronized (messageLines) {
                         event.getHook().editOriginal(String.join("\n", messageLines)).queue();
                     }
-                });
+                }));
             }
-        }).exceptionallyAsync(throwable -> {
+        })).exceptionallyAsync(withMDC(throwable -> {
             event.getHook().editOriginal("Failed to retrieve attachment").queue();
-            MDC.setContextMap(mdc);
             LOGGER.error("Failed to retrieve attachment", throwable);
             return null;
-        });
+        }));
     }
 
     private static InputStream[] splitInputStream(InputStream stream, int count, Consumer<Exception> errorCallback) throws IOException {
@@ -258,7 +255,9 @@ public final class UploadInteractions {
             throw e;
         }
 
+        Map<String, String> mdc = MDC.getCopyOfContextMap();
         new Thread(() -> {
+            MDC.setContextMap(mdc);
             try (stream) {
                 byte[] buffer = new byte[1024];
 

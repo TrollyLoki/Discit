@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.AdvancedGameSettings;
 import net.trollyloki.jicsit.server.https.HttpsApi;
@@ -24,6 +25,7 @@ import static net.trollyloki.discit.FormattingUtils.escapedServerName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class AdvancedGameSettingsInteractions {
@@ -137,15 +139,17 @@ public final class AdvancedGameSettingsInteractions {
 
         event.deferReply(true).queue();
 
-        requestAsync(server, "get Advanced Game Settings on", HttpsApi::getAdvancedGameSettings).thenAcceptAsync(ags -> {
+        requestAsyncWithMDC(server, "get Advanced Game Settings on",
+                HttpsApi::getAdvancedGameSettings
+        ).thenAcceptAsync(withMDC(ags -> {
 
             event.getHook().editOriginalComponents(settingsContainer(serverIdString, server.getName(), ags))
                     .useComponentsV2().queue();
 
-        }).exceptionallyAsync(throwable -> {
-            event.getHook().editOriginal(throwable.getMessage()).queue();
+        })).exceptionallyAsync(withMDC(throwable -> {
+            event.getHook().editOriginal(InteractionUtils.exceptionMessage(throwable)).queue();
             return null;
-        });
+        }));
     }
 
     public static void onAdvancedGameSettingEnableButton(ButtonInteractionEvent event, String serverIdString, String key) {
@@ -166,10 +170,10 @@ public final class AdvancedGameSettingsInteractions {
         Map<String, String> settings = Map.of(key, value);
         LOGGER.info("Applying Advanced Game Settings {} on {}", settings, serverNameForLog(server.getName()));
 
-        requestAsync(server, "apply Advanced Game Settings on", httpsApi -> {
+        requestAsyncWithMDC(server, "apply Advanced Game Settings on", httpsApi -> {
             httpsApi.applyAdvancedGameSettings(settings);
             return httpsApi.getAdvancedGameSettings();
-        }).thenAcceptAsync(ags -> {
+        }).thenAcceptAsync(withMDC(ags -> {
             String newValue = ags.settings().get(key);
 
             String action;
@@ -183,10 +187,10 @@ public final class AdvancedGameSettingsInteractions {
             interaction.getHook().editOriginalComponents(settingsContainer(serverIdString, server.getName(), ags))
                     .useComponentsV2().queue();
 
-        }).exceptionallyAsync(throwable -> {
-            interaction.getHook().sendMessage(throwable.getMessage()).setEphemeral(true).queue();
+        })).exceptionallyAsync(withMDC(throwable -> {
+            interaction.getHook().sendMessage(InteractionUtils.exceptionMessage(throwable)).setEphemeral(true).queue();
             return null;
-        });
+        }));
     }
 
 }

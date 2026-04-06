@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class ReloadInteractions {
@@ -88,18 +90,18 @@ public final class ReloadInteractions {
 
             LOGGER.info("Reloading {}", serverNameForLog(server.getName()));
 
-            requestAsync(server, "reload", httpsApi -> {
+            requestAsyncWithMDC(server, "reload", httpsApi -> {
                 httpsApi.save(RELOAD_SAVE_NAME);
                 httpsApi.loadSave(RELOAD_SAVE_NAME, false);
-            }).thenApplyAsync(r -> {
+            }).thenApplyAsync(withMDC(r -> {
                 logActionWithServer(interaction, "reloaded", server.getName());
                 return "Successfully reloaded " + inlineServerDisplayName(server.getName());
-            }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+            })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                 messageLines.set(index, message);
                 synchronized (messageLines) {
                     interaction.getHook().editOriginal(String.join("\n", messageLines)).queue();
                 }
-            });
+            }));
         }
     }
 

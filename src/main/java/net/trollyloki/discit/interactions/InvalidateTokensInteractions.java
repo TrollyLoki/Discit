@@ -12,8 +12,9 @@ import java.util.UUID;
 import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.InteractionUtils.getServerIfAdmin;
 import static net.trollyloki.discit.InteractionUtils.logActionWithServer;
-import static net.trollyloki.discit.InteractionUtils.requestAsync;
+import static net.trollyloki.discit.InteractionUtils.requestAsyncWithMDC;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class InvalidateTokensInteractions {
@@ -34,15 +35,17 @@ public final class InvalidateTokensInteractions {
 
         LOGGER.info("Invalidating all API tokens for {}", serverNameForLog(server.getName()));
 
-        requestAsync(server, "invalidate all API tokens for", InteractionUtils::invalidateTokens).thenApplyAsync(result -> {
+        requestAsyncWithMDC(server, "invalidate all API tokens for",
+                InteractionUtils::invalidateTokens
+        ).thenApplyAsync(withMDC(result -> {
             if (result.success()) {
                 logActionWithServer(event, "invalidated all API tokens for", server.getName());
                 getGuildManager(event).setServerToken(UUID.fromString(serverIdString), null);
             }
             return result.output();
-        }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginal(message).queue();
-        });
+        }));
     }
 
 }

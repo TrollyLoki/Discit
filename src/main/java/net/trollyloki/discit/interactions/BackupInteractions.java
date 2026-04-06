@@ -3,6 +3,7 @@ package net.trollyloki.discit.interactions;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.utils.FileUpload;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.SaveInfo;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
@@ -10,7 +11,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,8 +33,9 @@ import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionUtils.getAllServersIfAdmin;
 import static net.trollyloki.discit.InteractionUtils.isDashboard;
 import static net.trollyloki.discit.InteractionUtils.logAction;
-import static net.trollyloki.discit.InteractionUtils.saveAsync;
+import static net.trollyloki.discit.InteractionUtils.saveAsyncWithMDC;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class BackupInteractions {
@@ -75,23 +76,22 @@ public final class BackupInteractions {
             final int index = i;
             Server server = serverArray[index];
 
-            CompletableFuture<@Nullable SaveInfo> saveFuture = saveAsync(server, server.getName() + "_" + name);
-            saveFuture.thenApplyAsync(saveInfo -> {
-                return "Saved " + inlineServerDisplayName(server.getName());
-            }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+            CompletableFuture<@Nullable SaveInfo> saveFuture = saveAsyncWithMDC(server, server.getName() + "_" + name);
+            saveFuture.thenApplyAsync(withMDC(saveInfo ->
+                    "Saved " + inlineServerDisplayName(server.getName())
+            )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                 messageLines.set(index, message);
                 synchronized (messageLines) {
                     event.getHook().editOriginal(String.join("\n", messageLines)).queue();
                 }
-            });
+            }));
 
             // Replace exceptional completion will null value to make sure below allOf call succeeds
             futures[index] = saveFuture.exceptionally(t -> null);
         }
 
         // Download and zip save files
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        CompletableFuture.allOf(futures).thenRunAsync(() -> {
+        CompletableFuture.allOf(futures).thenRunAsync(withMDC(() -> {
             List<String> finalMessageLines = new ArrayList<>(futures.length);
             Map<Integer, SaveInfo> saves = new HashMap<>(futures.length);
             for (int i = 0; i < futures.length; i++) {
@@ -119,8 +119,6 @@ public final class BackupInteractions {
                         .setFiles(FileUpload.fromData(uploadStream, name + ".zip"))
                         .queue(message -> logAction(event, "backed up " + serversString + " to " + message.getAttachments().get(0).getUrl()));
 
-                MDC.setContextMap(mdc);
-
                 for (Map.Entry<Integer, SaveInfo> entry : saves.entrySet()) {
                     Server server = serverArray[entry.getKey()];
                     SaveInfo saveInfo = entry.getValue();
@@ -136,12 +134,11 @@ public final class BackupInteractions {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-        }).exceptionallyAsync(throwable -> {
+        })).exceptionallyAsync(withMDC(throwable -> {
             event.getHook().editOriginal("Failed to transfer data").queue();
-            MDC.setContextMap(mdc);
             LOGGER.error("Error creating backup file", throwable);
             return null;
-        });
+        }));
     }
 
 }

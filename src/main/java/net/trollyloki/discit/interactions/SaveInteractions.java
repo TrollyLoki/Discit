@@ -11,6 +11,7 @@ import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.FileUpload;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.SaveInfo;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
@@ -18,7 +19,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.io.InputStream;
 import java.util.Map;
@@ -29,6 +29,7 @@ import static net.trollyloki.discit.FormattingUtils.safeMonospace;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class SaveInteractions {
@@ -99,29 +100,27 @@ public final class SaveInteractions {
 
         LOGGER.info("Saving {} as \"{}\"", serverNameForLog(server.getName()), saveName);
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        saveAsync(server, saveName).thenComposeAsync(saveInfo -> {
+        saveAsyncWithMDC(server, saveName).thenComposeAsync(withMDC(saveInfo -> {
 
             String monospaceFilename = safeMonospace(saveInfo.name() + SaveFileReader.EXTENSION);
             event.getHook().editOriginal("Downloading " + monospaceFilename + " from " + inlineServerDisplayName(server.getName()) + "...").queue();
 
-            MDC.setContextMap(mdc);
             LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
 
-            return requestAsync(server, "download " + monospaceFilename + " from", httpsApi -> {
+            return requestAsyncWithMDC(server, "download " + monospaceFilename + " from", httpsApi -> {
                 return new SaveDownload(saveInfo, httpsApi.downloadSave(saveInfo.name()));
             });
 
-        }).thenAcceptAsync(saveDownload -> {
+        })).thenAcceptAsync(withMDC(saveDownload -> {
 
             event.getHook().editOriginal(saveDownload.info.formatted(server.getName()))
                     .setFiles(FileUpload.fromData(saveDownload.data, saveDownload.info.name() + SaveFileReader.EXTENSION))
                     .queue(message -> logActionWithServer(event, "downloaded " + message.getAttachments().get(0).getUrl() + " from", server.getName()));
 
-        }).exceptionallyAsync(throwable -> {
-            event.getHook().editOriginal(throwable.getMessage()).queue();
+        })).exceptionallyAsync(withMDC(throwable -> {
+            event.getHook().editOriginal(InteractionUtils.exceptionMessage(throwable)).queue();
             return null;
-        });
+        }));
     }
 
 }

@@ -17,15 +17,12 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -36,6 +33,7 @@ import static net.trollyloki.discit.FormattingUtils.escapeAll;
 import static net.trollyloki.discit.FormattingUtils.formatGameDuration;
 import static net.trollyloki.discit.FormattingUtils.safeMonospace;
 import static net.trollyloki.discit.InteractionUtils.findMessageAttachments;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class AnalyzeSaveInteractions {
@@ -56,10 +54,8 @@ public final class AnalyzeSaveInteractions {
 
         LOGGER.info("Analyzing {} save file(s)", attachments.size());
 
-        Map<String, String> mdc = MDC.getCopyOfContextMap();
-        @SuppressWarnings("unchecked") CompletableFuture<List<ContainerChildComponent>>[] futures = attachments.stream().map(
-                attachment -> attachment.getProxy().download().thenApplyAsync(downloadStream -> {
-                    MDC.setContextMap(mdc);
+        List<CompletableFuture<List<? extends ContainerChildComponent>>> futures = attachments.stream().map(
+                attachment -> attachment.getProxy().download().thenApplyAsync(withMDC(downloadStream -> {
                     if ("application/zip".equals(attachment.getContentType())) {
 
                         try (ZipInputStream zipStream = new ZipInputStream(downloadStream)) {
@@ -79,16 +75,15 @@ public final class AnalyzeSaveInteractions {
                         }
 
                     }
-                }).exceptionallyAsync(throwable -> {
-                    MDC.setContextMap(mdc);
+                })).exceptionallyAsync(withMDC(throwable -> {
                     LOGGER.error("Failed to retrieve attachment \"{}\"", attachment.getFileName(), throwable.getCause());
                     return Collections.singletonList(TextDisplay.of("Failed to retrieve " + attachment.getUrl()));
-                })
-        ).toArray(CompletableFuture[]::new);
+                }))
+        ).toList();
 
-        CompletableFuture.allOf(futures).thenRunAsync(() -> {
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).thenRunAsync(withMDC(() -> {
             try {
-                List<Container> containers = Arrays.stream(futures).map(CompletableFuture::join).map(Container::of).toList();
+                List<Container> containers = futures.stream().map(CompletableFuture::join).map(Container::of).toList();
 
                 List<Container> messageContainers = new ArrayList<>(containers.size());
                 int totalSize = 0;
@@ -117,10 +112,9 @@ public final class AnalyzeSaveInteractions {
                 }
 
             } catch (Exception e) {
-                MDC.setContextMap(mdc);
                 LOGGER.error("Failed to update reply", e);
             }
-        });
+        }));
     }
 
     private static SaveFileInfo readSaveFileInfo(String filename, InputStream data) throws IOException {

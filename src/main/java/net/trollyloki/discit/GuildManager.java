@@ -24,8 +24,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import static net.trollyloki.discit.AddressUtils.validateHostAddress;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public class GuildManager {
@@ -61,14 +63,18 @@ public class GuildManager {
         return guildManager;
     }
 
-    private synchronized void save() {
-        File dataFile = dataFile(guildId);
-        try {
-            boolean ignored = dataFile.getParentFile().mkdirs();
-            DATA_MAPPER.writerWithDefaultPrettyPrinter().writeValue(dataFile(guildId), data);
-        } catch (IOException e) {
-            LOGGER.error("Failed to save data for guild {}", guildId, e);
-        }
+    private void save() {
+        CompletableFuture.runAsync(withMDC(() -> {
+            File dataFile = dataFile(guildId);
+            synchronized (this) {
+                try {
+                    boolean ignored = dataFile.getParentFile().mkdirs();
+                    DATA_MAPPER.writerWithDefaultPrettyPrinter().writeValue(dataFile(guildId), data);
+                } catch (IOException e) {
+                    LOGGER.error("Failed to save data for guild {}", guildId, e);
+                }
+            }
+        }));
     }
 
     public Guild getGuild() {

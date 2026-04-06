@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class RenameInteractions {
@@ -54,14 +56,14 @@ public final class RenameInteractions {
 
         LOGGER.info("Renaming {} to {}", serverNameForLog(originalName), serverNameForLog(newName));
 
-        requestAsync(server, "rename", httpsApi -> {
+        requestAsyncWithMDC(server, "rename", httpsApi -> {
             httpsApi.renameServer(newName);
-        }).thenApplyAsync(r -> {
+        }).thenApplyAsync(withMDC(r -> {
             logActionWithServer(event, "renamed " + inlineServerDisplayName(originalName) + " to", newName);
             return "Successfully renamed " + inlineServerDisplayName(newName);
-        }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginal(message).queue();
-        });
+        }));
     }
 
 }

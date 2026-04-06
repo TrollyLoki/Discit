@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.HttpsApi;
 import org.jspecify.annotations.NullMarked;
@@ -20,8 +21,9 @@ import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.getServerIfAdmin;
 import static net.trollyloki.discit.InteractionUtils.logActionWithServer;
-import static net.trollyloki.discit.InteractionUtils.requestAsync;
+import static net.trollyloki.discit.InteractionUtils.requestAsyncWithMDC;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
+import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
 public final class ChangePasswordInteractions {
@@ -102,14 +104,14 @@ public final class ChangePasswordInteractions {
         LOGGER.info("{} {} for {}", password.isEmpty() ? "Removing" : "Changing", typeLower, serverNameForLog(server.getName()));
 
         String action = password.isEmpty() ? "remove" : "change";
-        requestAsync(server, action + " " + typeLower + " for", httpsApi -> {
+        requestAsyncWithMDC(server, action + " " + typeLower + " for", httpsApi -> {
             type.set(httpsApi, password);
-        }).thenApplyAsync(r -> {
+        }).thenApplyAsync(withMDC(r -> {
             logActionWithServer(event, action + "d the " + typeLower + " for", server.getName());
             return "Successfully " + action + "d the " + typeLower + " for " + inlineServerDisplayName(server.getName());
-        }).exceptionally(Throwable::getMessage).thenAcceptAsync(message -> {
+        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginal(message).queue();
-        });
+        }));
     }
 
 }

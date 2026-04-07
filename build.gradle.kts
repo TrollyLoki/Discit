@@ -1,5 +1,6 @@
 plugins {
     application
+    alias(libs.plugins.jib)
 }
 
 group = "net.trollyloki"
@@ -30,4 +31,17 @@ dependencies {
 
 application {
     mainClass = "net.trollyloki.discit.Discit"
+}
+
+jib {
+    to {
+        image = "trollyloki/discit:$version"
+    }
+    outputPaths {
+        val path = layout.buildDirectory.file("discit-$version-image").get().asFile.path
+        tar = "$path.tar"
+        digest = "$path.digest"
+        imageId = "$path.id"
+        imageJson = "$path.json"
+    }
 }

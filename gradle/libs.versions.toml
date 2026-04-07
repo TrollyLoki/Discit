@@ -3,9 +3,13 @@ jda = "6.4.1"
 jicsit = "1.0.0"
 logback = "1.5.32"
 jackson = "3.1.1"
+jib = "3.5.3"
 
 [libraries]
 jda = { module = "net.dv8tion:JDA", version.ref = "jda" }
 jicsit-server = { module = "net.trollyloki.jicsit:jicsit-server", version.ref = "jicsit" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
+
+[plugins]
+jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }

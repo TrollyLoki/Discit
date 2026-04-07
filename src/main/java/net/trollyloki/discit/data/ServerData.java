@@ -72,11 +72,6 @@ public class ServerData implements Server {
     }
 
     @Override
-    public boolean hasToken() {
-        return token != null;
-    }
-
-    @SuppressWarnings("unused") // needed for Jackson serialization!
     public @Nullable String getToken() {
         return token;
     }

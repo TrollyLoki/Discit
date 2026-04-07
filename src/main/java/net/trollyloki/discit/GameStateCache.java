@@ -4,6 +4,7 @@ import net.trollyloki.jicsit.server.https.HttpsApi;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import net.trollyloki.jicsit.server.https.ServerGameState;
 import net.trollyloki.jicsit.server.https.exception.ApiException;
+import net.trollyloki.jicsit.server.https.exception.InvalidTokenException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ public class GameStateCache {
     private final GuildManager guildManager;
     private final Server server;
 
+    private final HttpsApi httpsApi;
     private final ScheduledExecutorService executor;
 
     private int errorCount;
@@ -51,6 +53,7 @@ public class GameStateCache {
         this.guildManager = guildManager;
         this.server = server;
 
+        this.httpsApi = server.httpsApi(QUERY_TIMEOUT);
         this.executor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "Game State Query Thread"));
     }
 
@@ -100,10 +103,15 @@ public class GameStateCache {
         LOGGER.info("Querying game state of {}", serverNameForLog(server.getName()));
 
         try {
-            HttpsApi httpsApi = server.httpsApi(QUERY_TIMEOUT);
-            if (httpsApi.getPrivilegeLevel() == PrivilegeLevel.NOT_AUTHENTICATED) {
+            String token = server.getToken();
+            if (token != null) {
+                httpsApi.setToken(token);
+            } else if (httpsApi.getPrivilegeLevel() != PrivilegeLevel.CLIENT) {
+                LOGGER.info("Attempting passwordless login to {}", serverNameForLog(server.getName()));
+                httpsApi.setToken(null);
                 httpsApi.passwordlessLogin(PrivilegeLevel.CLIENT);
             }
+
             ServerGameState gameState = httpsApi.queryServerState();
 
             set(gameState, null);
@@ -113,6 +121,7 @@ public class GameStateCache {
 
         } catch (ApiException e) {
             LOGGER.warn("Unable to query game state of {}: {}", serverNameForLog(server.getName()), e.getMessage());
+            if (e instanceof InvalidTokenException) httpsApi.setToken(null);
 
             set(null, e.getMessage());
 

@@ -19,7 +19,11 @@ public interface Server {
 
     @Nullable String getName();
 
-    boolean hasToken();
+    @Nullable String getToken();
+
+    default boolean hasToken() {
+        return getToken() != null;
+    }
 
     QueryApi queryApi(@Nullable Duration timeout) throws SocketException;
 

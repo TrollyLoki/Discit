@@ -2,11 +2,7 @@ package net.trollyloki.discit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
-import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.Channel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
@@ -202,7 +198,7 @@ public class GuildManager {
     public void refreshServer(UUID serverId) {
         ServerMonitor monitor = monitors.get(serverId);
         if (monitor != null) {
-            monitor.getGameStateCache().refresh();
+            monitor.refresh();
         } else {
             LOGGER.warn("Could not find monitor for server {}", serverId);
         }

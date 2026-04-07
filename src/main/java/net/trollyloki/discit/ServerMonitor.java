@@ -20,9 +20,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
-import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
-import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
-import static net.trollyloki.discit.LoggingUtils.setMDC;
+import static net.trollyloki.discit.LoggingUtils.*;
 
 @NullMarked
 public class ServerMonitor implements Closeable {
@@ -78,12 +76,16 @@ public class ServerMonitor implements Closeable {
         scheduleOfflineFuture();
     }
 
-    public GameStateCache getGameStateCache() {
-        return gameStateCache;
-    }
-
     public DashboardUpdater getDashboardUpdater() {
         return dashboardUpdater;
+    }
+
+    public void refresh() {
+        updateExecutor.execute(() -> {
+            if (lastStatus == ServerStatus.PLAYING) {
+                gameStateCache.refresh();
+            }
+        });
     }
 
     @Override

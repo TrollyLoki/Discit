@@ -96,7 +96,7 @@ public final class ListInteractions {
     }
 
     public static void onListSelect(StringSelectInteractionEvent event) {
-        String serverIdString = event.getValues().get(0);
+        String serverIdString = event.getValues().getFirst();
         Server server = getServerIfAdmin(event, serverIdString);
         if (server == null)
             return;
@@ -161,7 +161,7 @@ public final class ListInteractions {
         event.deferEdit().queue();
 
         CompletableFuture<String> tokenFuture;
-        if (type.getAsStringList().get(0).equals("password")) {
+        if (type.getAsStringList().getFirst().equals("password")) {
             LOGGER.info("Generating API token for {}", serverNameForLog(server.getName()));
 
             tokenFuture = requestAsyncWithMDC(server, "generate token for", httpsApi -> {

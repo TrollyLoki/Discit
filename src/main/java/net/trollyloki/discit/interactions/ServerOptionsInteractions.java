@@ -26,9 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import static net.trollyloki.discit.FormattingUtils.escapeAll;
-import static net.trollyloki.discit.FormattingUtils.escapedServerName;
-import static net.trollyloki.discit.FormattingUtils.formatDuration;
+import static net.trollyloki.discit.FormattingUtils.*;
 import static net.trollyloki.discit.InteractionListener.buildId;
 import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
@@ -57,7 +55,7 @@ public final class ServerOptionsInteractions {
 
         String current = gameState.autoLoadSessionName();
         if (!current.isEmpty() && !sessionNames.contains(current)) {
-            sessionNames.add(0, current);
+            sessionNames.addFirst(current);
         }
 
         if (sessionNames.isEmpty()) {
@@ -253,7 +251,7 @@ public final class ServerOptionsInteractions {
 
         event.deferEdit().queue();
 
-        String autoloadSessionName = event.getValues().get(0);
+        String autoloadSessionName = event.getValues().getFirst();
         LOGGER.info("Setting auto-load session name for {} to \"{}\"", serverNameForLog(server.getName()), autoloadSessionName);
 
         requestAsyncWithMDC(server, "set auto-load session name for", httpsApi -> {
@@ -276,7 +274,7 @@ public final class ServerOptionsInteractions {
     }
 
     public static void onSetServerOptionSelect(StringSelectInteractionEvent event, String serverIdString, String key) {
-        onSetServerOptionHelper(event, serverIdString, key, event.getValues().get(0));
+        onSetServerOptionHelper(event, serverIdString, key, event.getValues().getFirst());
     }
 
     private static void onSetServerOptionHelper(ComponentInteraction interaction, String serverIdString, String key, String value) {

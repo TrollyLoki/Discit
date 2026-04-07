@@ -17,23 +17,14 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
-import static net.trollyloki.discit.InteractionUtils.getAllServersIfAdmin;
-import static net.trollyloki.discit.InteractionUtils.isDashboard;
-import static net.trollyloki.discit.InteractionUtils.logAction;
-import static net.trollyloki.discit.InteractionUtils.saveAsyncWithMDC;
+import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
 
@@ -117,7 +108,7 @@ public final class BackupInteractions {
             try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
                 event.getHook().editOriginal(String.join("\n", finalMessageLines))
                         .setFiles(FileUpload.fromData(uploadStream, name + ".zip"))
-                        .queue(message -> logAction(event, "backed up " + serversString + " to " + message.getAttachments().get(0).getUrl()));
+                        .queue(message -> logAction(event, "backed up " + serversString + " to " + message.getAttachments().getFirst().getUrl()));
 
                 for (Map.Entry<Integer, SaveInfo> entry : saves.entrySet()) {
                     Server server = serverArray[entry.getKey()];

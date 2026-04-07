@@ -22,10 +22,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
-import static net.trollyloki.discit.InteractionUtils.cannotManageGuild;
-import static net.trollyloki.discit.InteractionUtils.createIntSelectMenu;
-import static net.trollyloki.discit.InteractionUtils.getGuildManager;
-import static net.trollyloki.discit.InteractionUtils.logAction;
+import static net.trollyloki.discit.InteractionUtils.*;
 
 @NullMarked
 public final class SettingsInteractions {
@@ -134,7 +131,7 @@ public final class SettingsInteractions {
         if (cannotManageGuild(event))
             return null;
 
-        IMentionable selection = event.getValues().get(0);
+        IMentionable selection = event.getValues().getFirst();
 
         GuildManager guildManager = getGuildManager(event);
         setter.accept(guildManager, selection.getId());
@@ -146,7 +143,7 @@ public final class SettingsInteractions {
         if (cannotManageGuild(event))
             return;
 
-        int seconds = Integer.parseInt(event.getValues().get(0));
+        int seconds = Integer.parseInt(event.getValues().getFirst());
         Duration duration = seconds < 0 ? null : Duration.ofSeconds(seconds);
 
         GuildManager guildManager = getGuildManager(event);

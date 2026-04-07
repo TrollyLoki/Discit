@@ -83,7 +83,7 @@ public final class SaveInteractions {
                 event.reply("Please select a server").setEphemeral(true).queue();
                 return;
             }
-            serverIdString = serverIds.getAsStringList().get(0);
+            serverIdString = serverIds.getAsStringList().getFirst();
         }
 
         Server server = getServerIfAdmin(event, serverIdString);
@@ -115,7 +115,7 @@ public final class SaveInteractions {
 
             event.getHook().editOriginal(saveDownload.info.formatted(server.getName()))
                     .setFiles(FileUpload.fromData(saveDownload.data, saveDownload.info.name() + SaveFileReader.EXTENSION))
-                    .queue(message -> logActionWithServer(event, "downloaded " + message.getAttachments().get(0).getUrl() + " from", server.getName()));
+                    .queue(message -> logActionWithServer(event, "downloaded " + message.getAttachments().getFirst().getUrl() + " from", server.getName()));
 
         })).exceptionallyAsync(withMDC(throwable -> {
             event.getHook().editOriginal(InteractionUtils.exceptionMessage(throwable)).queue();

@@ -157,7 +157,7 @@ public final class AdvancedGameSettingsInteractions {
     }
 
     public static void onAdvancedGameSettingValueSelect(StringSelectInteractionEvent event, String serverIdString, String key) {
-        onAdvancedGameSettingHelper(event, serverIdString, key, event.getValues().get(0));
+        onAdvancedGameSettingHelper(event, serverIdString, key, event.getValues().getFirst());
     }
 
     private static void onAdvancedGameSettingHelper(ComponentInteraction interaction, String serverIdString, String key, String value) {

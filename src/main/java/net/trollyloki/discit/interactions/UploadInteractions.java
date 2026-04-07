@@ -150,9 +150,9 @@ public final class UploadInteractions {
 
         NamedAttachmentProxy attachment;
         switch (save.getType()) {
-            case FILE_UPLOAD -> attachment = save.getAsAttachmentList().get(0).getProxy();
+            case FILE_UPLOAD -> attachment = save.getAsAttachmentList().getFirst().getProxy();
             case STRING_SELECT -> {
-                attachment = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().get(0)));
+                attachment = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().getFirst()));
                 if (attachment == null) {
                     event.reply("Attachment context expired, please try again").queue();
                     return;
@@ -170,7 +170,7 @@ public final class UploadInteractions {
             return;
         }
 
-        String actionString = action.getAsStringList().get(0);
+        String actionString = action.getAsStringList().getFirst();
         boolean load = actionString.startsWith("load");
         boolean loadCreative = actionString.equals("load-creative");
 

@@ -84,10 +84,6 @@ public class Discit {
         }
     }
 
-    public JDA getJDA() {
-        return jda;
-    }
-
     public void shutdown() throws InterruptedException {
         jda.shutdown();
         jda.awaitShutdown();

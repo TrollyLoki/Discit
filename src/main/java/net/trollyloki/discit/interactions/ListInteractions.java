@@ -78,7 +78,7 @@ public final class ListInteractions {
     }
 
     public static void onListCommand(SlashCommandInteractionEvent event) {
-        if (missingAdminRole(event))
+        if (isNotAdmin(event))
             return;
 
         int serverCount = getGuildManager(event).getServers().size();
@@ -108,7 +108,7 @@ public final class ListInteractions {
     }
 
     public static void onListRemoveButton(ButtonInteractionEvent event, String serverIdString) {
-        if (missingAdminRole(event))
+        if (isNotAdmin(event))
             return;
 
         Server server = getGuildManager(event).removeServer(UUID.fromString(serverIdString));

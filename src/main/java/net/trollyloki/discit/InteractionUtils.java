@@ -30,20 +30,15 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
-import static net.trollyloki.discit.FormattingUtils.defaultSaveName;
-import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
-import static net.trollyloki.discit.FormattingUtils.serverDisplayName;
+import static net.trollyloki.discit.FormattingUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
 
@@ -106,27 +101,27 @@ public final class InteractionUtils {
             return false;
         }
 
-        LOGGER.info("Unauthorized user: {} lacks the Manager Server permission", callback.getUser().getAsMention());
+        LOGGER.info("Unauthorized user: {} does not have the Manager Server permission", callback.getUser().getAsMention());
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
 
-    public static boolean missingAdminRole(IReplyCallback callback) {
+    public static boolean isNotAdmin(IReplyCallback callback) {
         Member member = getMember(callback);
         if (member == null)
             return true;
 
-        if (getGuildManager(callback).hasAdminRole(member)) {
+        if (member.hasPermission(Permission.MANAGE_SERVER) || getGuildManager(callback).hasAdminRole(member)) {
             return false;
         }
 
-        LOGGER.info("Unauthorized user: {} lacks the administrator role", callback.getUser().getAsMention());
+        LOGGER.info("Unauthorized user: {} does not have the administrator role or Manager Server permission", callback.getUser().getAsMention());
         callback.reply("You do not have permission to do that!").setEphemeral(true).queue();
         return true;
     }
 
     public static @Nullable Server getServerIfAdmin(IReplyCallback callback, String serverIdString) {
-        if (missingAdminRole(callback))
+        if (isNotAdmin(callback))
             return null;
 
         Server server = getGuildManager(callback).getServer(UUID.fromString(serverIdString));
@@ -139,7 +134,7 @@ public final class InteractionUtils {
     }
 
     public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback) {
-        if (missingAdminRole(callback))
+        if (isNotAdmin(callback))
             return null;
 
         Map<UUID, Server> servers = getGuildManager(callback).getServers();

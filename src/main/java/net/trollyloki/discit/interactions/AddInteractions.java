@@ -56,7 +56,7 @@ public final class AddInteractions {
             CLAIM_MODAL_ID = "claim";
 
     public static void onAddCommand(SlashCommandInteractionEvent event) {
-        if (missingAdminRole(event))
+        if (isNotAdmin(event))
             return;
 
         String host = event.getOption("host", OptionMapping::getAsString);
@@ -111,7 +111,7 @@ public final class AddInteractions {
     }
 
     public static void onRetryButton(ButtonInteractionEvent event, String host, int port) {
-        if (missingAdminRole(event))
+        if (isNotAdmin(event))
             return;
 
         event.editComponents(ActionRow.of(
@@ -121,7 +121,7 @@ public final class AddInteractions {
     }
 
     public static void onAddConfirmButton(ButtonInteractionEvent event, String host, int port, String fingerprint) {
-        if (missingAdminRole(event))
+        if (isNotAdmin(event))
             return;
 
         Map.Entry<UUID, Server> serverEntry = getGuildManager(event).addServer(host, port, fingerprint);

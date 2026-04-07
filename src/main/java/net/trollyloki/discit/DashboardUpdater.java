@@ -23,28 +23,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static net.trollyloki.discit.FormattingUtils.escapeAll;
-import static net.trollyloki.discit.FormattingUtils.escapedServerName;
-import static net.trollyloki.discit.FormattingUtils.formatGameDuration;
+import static net.trollyloki.discit.FormattingUtils.*;
 import static net.trollyloki.discit.InteractionListener.DASHBOARD_REFRESH_BUTTON_ID;
 import static net.trollyloki.discit.InteractionListener.buildId;
-import static net.trollyloki.discit.InteractionUtils.GREEN_ACCENT;
-import static net.trollyloki.discit.InteractionUtils.RED_ACCENT;
-import static net.trollyloki.discit.InteractionUtils.YELLOW_ACCENT;
-import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
-import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
-import static net.trollyloki.discit.LoggingUtils.setMDC;
+import static net.trollyloki.discit.InteractionUtils.*;
+import static net.trollyloki.discit.LoggingUtils.*;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.AGS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
@@ -76,7 +65,7 @@ public class DashboardUpdater {
     private boolean authenticated;
 
     private @Nullable String messageId;
-    private @Nullable CompletableFuture<Message> messageUpdateFuture;
+    private @Nullable CompletableFuture<Message> messageEditFuture;
 
     public DashboardUpdater(GuildManager guildManager, UUID serverId, boolean authenticated) {
         this.guildManager = guildManager;
@@ -87,15 +76,10 @@ public class DashboardUpdater {
         this.authenticated = authenticated;
     }
 
-    private void execute(Runnable runnable) {
+    public synchronized void setInfo(@Nullable String name, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
         executor.execute(() -> {
             setMDC(guildManager);
-            runnable.run();
-        });
-    }
 
-    public void setInfo(@Nullable String name, ServerStatus status, @Nullable String message, @Nullable ServerGameState gameState, @Nullable Duration ping) {
-        execute(() -> {
             if (Objects.equals(name, this.name)
                     && status == this.status
                     && Objects.equals(message, this.message)
@@ -116,8 +100,10 @@ public class DashboardUpdater {
         });
     }
 
-    public void setAuthenticated(boolean authenticated) {
-        execute(() -> {
+    public synchronized void setAuthenticated(boolean authenticated) {
+        executor.execute(() -> {
+            setMDC(guildManager);
+
             if (authenticated == this.authenticated)
                 return;
 
@@ -127,20 +113,17 @@ public class DashboardUpdater {
         });
     }
 
-    private void cancelMessageUpdate() {
-        if (messageUpdateFuture != null && !messageUpdateFuture.isDone()) {
-            LOGGER.info("Cancelling previous message update for {}", serverNameForLog(name));
-            messageUpdateFuture.cancel(false);
-            try {
-                messageUpdateFuture.join();
-            } catch (CancellationException | CompletionException ignored) {
-            }
-        }
-    }
+    public synchronized void shutdown() {
+        executor.execute(() -> {
+            setMDC(guildManager);
 
-    public void shutdown() {
-        execute(() -> {
-            cancelMessageUpdate();
+            if (messageEditFuture != null && !messageEditFuture.isDone()) {
+                messageEditFuture.cancel(true);
+                try {
+                    messageEditFuture.join();
+                } catch (Exception ignored) {
+                }
+            }
 
             GuildMessageChannel channel = guildManager.getDashboardChannel();
             if (channel == null) return;
@@ -153,65 +136,64 @@ public class DashboardUpdater {
         executor.shutdown();
     }
 
-    public void updateMessage() {
-        GuildMessageChannel channel = guildManager.getDashboardChannel();
-        if (channel == null) {
-            LOGGER.warn("Cannot access dashboard channel");
-            return;
-        }
+    public synchronized void updateMessage() {
+        executor.execute(() -> {
+            setMDC(guildManager);
 
-        execute(() -> {
+            if (messageEditFuture != null && !messageEditFuture.isDone()) {
+                LOGGER.info("Cancelling previous message edit request for {}", serverNameForLog(name));
+                messageEditFuture.cancel(false);
+            }
 
-            // Cancel any pending request
-            cancelMessageUpdate();
+            GuildMessageChannel channel = guildManager.getDashboardChannel();
+            if (channel == null) {
+                LOGGER.warn("Cannot access dashboard channel");
+                return;
+            }
 
             Container container = createContainer();
 
-            // Submit new edit request
-            if (messageId == null)
+            if (messageId == null) {
                 messageId = guildManager.getDashboardMessageId(serverId);
-            if (messageId != null) {
-                CompletableFuture<Message> future = channel.editMessageComponentsById(messageId, container).useComponentsV2().submit();
-
-                future.exceptionallyComposeAsync(throwable -> {
-                    if (future.isCancelled()) return future;
-                    setMDC(guildManager);
-
-                    if (throwable instanceof ErrorResponseException response && response.getErrorResponse() == ErrorResponse.UNKNOWN_MESSAGE) {
-                        messageUpdateFuture = sendNewDashboardMessage(channel, container);
-                        return messageUpdateFuture;
-                    } else {
-                        LOGGER.warn("Error editing dashboard message for {}", serverNameForLog(name), throwable);
-                        return future;
-                    }
-
-                }, executor);
-
-                messageUpdateFuture = future;
-            } else {
-                messageUpdateFuture = sendNewDashboardMessage(channel, container);
+            }
+            if (messageId == null) {
+                createNewMessage(channel, container);
+                return;
             }
 
+            String editingMessageId = messageId;
+            messageEditFuture = channel.editMessageComponentsById(editingMessageId, container).useComponentsV2().submit();
+
+            messageEditFuture.whenCompleteAsync((edit, throwable) -> {
+                if (throwable == null || throwable instanceof CancellationException) return;
+                setMDC(guildManager);
+
+                if (!(throwable instanceof ErrorResponseException e) || e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE) {
+                    LOGGER.warn("Error editing dashboard message for {}", serverNameForLog(name), throwable);
+                    return;
+                }
+
+                if (!Objects.equals(messageId, editingMessageId)) {
+                    // A new message has already been sent
+                    return;
+                }
+
+                // Send new message and update messageId
+                createNewMessage(channel, container);
+
+            }, executor);
         });
     }
 
-    private CompletableFuture<Message> sendNewDashboardMessage(GuildMessageChannel channel, Container container) {
-        CompletableFuture<Message> future = channel.sendMessageComponents(container).useComponentsV2().submit();
-
-        future.whenCompleteAsync((newMessage, throwable) -> {
-            setMDC(guildManager);
-
-            if (newMessage != null) {
-                messageId = newMessage.getId();
-                guildManager.updateDashboardMessageId(serverId, messageId);
-            }
-
-            if (throwable != null) {
-                LOGGER.warn("Error sending new dashboard message for {}", serverNameForLog(name), throwable);
-            }
-
-        }, executor);
-        return future;
+    private void createNewMessage(GuildMessageChannel channel, Container container) {
+        try {
+            LOGGER.info("Sending new dashboard message for {}", serverNameForLog(name));
+            Message newMessage = channel.sendMessageComponents(container).useComponentsV2().complete();
+            messageId = newMessage.getId();
+            guildManager.updateDashboardMessageId(serverId, messageId);
+        } catch (Exception exception) {
+            LOGGER.warn("Error sending new dashboard message for {}", serverNameForLog(name), exception);
+        }
     }
 
     private Container createContainer() {

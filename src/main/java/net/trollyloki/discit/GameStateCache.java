@@ -16,9 +16,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
-import static net.trollyloki.discit.LoggingUtils.serverThreadFactory;
-import static net.trollyloki.discit.LoggingUtils.setMDC;
+import static net.trollyloki.discit.LoggingUtils.*;
 
 @NullMarked
 public class GameStateCache {
@@ -116,12 +114,12 @@ public class GameStateCache {
         } catch (ApiException e) {
             LOGGER.warn("Unable to query game state of {}: {}", serverNameForLog(server.getName()), e.getMessage());
 
-            set(null, "Unable to query game state: " + e.getMessage());
+            set(null, e.getMessage());
 
         } catch (Exception e) {
             LOGGER.warn("Failed to query game state of {}", serverNameForLog(server.getName()), e);
 
-            set(null, "Failed to query game state");
+            set(null, null);
 
         }
 

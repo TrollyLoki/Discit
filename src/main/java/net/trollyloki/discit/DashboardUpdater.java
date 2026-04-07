@@ -204,7 +204,7 @@ public class DashboardUpdater {
 
         if (message != null) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));
-            components.add(TextDisplay.of(message));
+            components.add(TextDisplay.of(Emoji.fromUnicode("⚠️").getFormatted() + " " + message));
         }
 
         if (gameState != null) {

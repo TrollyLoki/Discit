@@ -212,7 +212,7 @@ public final class UploadInteractions {
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                }).thenApplyAsync(withMDC(r -> {
+                }).thenApplyAsync(withMDC(_ -> {
                     String result = load ? "loaded " + file + " on" : "uploaded " + file + " to";
                     logActionWithServer(event, result, server.getName());
                     return "Successfully " + result + " " + inlineServerDisplayName(server.getName());

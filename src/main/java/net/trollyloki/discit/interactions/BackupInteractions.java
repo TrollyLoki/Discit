@@ -68,7 +68,7 @@ public final class BackupInteractions {
             Server server = serverArray[index];
 
             CompletableFuture<@Nullable SaveInfo> saveFuture = saveAsyncWithMDC(server, server.getName() + "_" + name);
-            saveFuture.thenApplyAsync(withMDC(saveInfo ->
+            saveFuture.thenApplyAsync(withMDC(_ ->
                     "Saved " + inlineServerDisplayName(server.getName())
             )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                 messageLines.set(index, message);
@@ -78,7 +78,7 @@ public final class BackupInteractions {
             }));
 
             // Replace exceptional completion will null value to make sure below allOf call succeeds
-            futures[index] = saveFuture.exceptionally(t -> null);
+            futures[index] = saveFuture.exceptionally(_ -> null);
         }
 
         // Download and zip save files

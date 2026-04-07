@@ -225,7 +225,7 @@ public final class AddInteractions {
                 }));
             }
 
-        }).thenApplyAsync(withMDC(r -> {
+        }).thenApplyAsync(withMDC(_ -> {
             logActionWithServer(event, "claimed", name.getAsString());
             return "Successfully claimed " + inlineServerDisplayName(name.getAsString());
         })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {

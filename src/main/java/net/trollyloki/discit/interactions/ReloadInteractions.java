@@ -93,7 +93,7 @@ public final class ReloadInteractions {
             requestAsyncWithMDC(server, "reload", httpsApi -> {
                 httpsApi.save(RELOAD_SAVE_NAME);
                 httpsApi.loadSave(RELOAD_SAVE_NAME, false);
-            }).thenApplyAsync(withMDC(r -> {
+            }).thenApplyAsync(withMDC(_ -> {
                 logActionWithServer(interaction, "reloaded", server.getName());
                 return "Successfully reloaded " + inlineServerDisplayName(server.getName());
             })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {

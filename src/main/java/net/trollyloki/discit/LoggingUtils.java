@@ -55,14 +55,14 @@ public final class LoggingUtils {
     }
 
     public static <R extends @Nullable Object> Supplier<R> withMDC(Supplier<R> supplier) {
-        Function<?, R> function = withMDC(v -> {
+        Function<?, R> function = withMDC(_ -> {
             return supplier.get();
         });
         return () -> function.apply(null);
     }
 
     public static Runnable withMDC(Runnable runnable) {
-        Function<?, ?> function = withMDC(v -> {
+        Function<?, ?> function = withMDC(_ -> {
             runnable.run();
             return null;
         });

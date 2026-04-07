@@ -19,9 +19,7 @@ import java.util.Locale;
 
 import static net.trollyloki.discit.FormattingUtils.inlineServerDisplayName;
 import static net.trollyloki.discit.InteractionListener.buildId;
-import static net.trollyloki.discit.InteractionUtils.getServerIfAdmin;
-import static net.trollyloki.discit.InteractionUtils.logActionWithServer;
-import static net.trollyloki.discit.InteractionUtils.requestAsyncWithMDC;
+import static net.trollyloki.discit.InteractionUtils.*;
 import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
 
@@ -106,7 +104,7 @@ public final class ChangePasswordInteractions {
         String action = password.isEmpty() ? "remove" : "change";
         requestAsyncWithMDC(server, action + " " + typeLower + " for", httpsApi -> {
             type.set(httpsApi, password);
-        }).thenApplyAsync(withMDC(r -> {
+        }).thenApplyAsync(withMDC(_ -> {
             logActionWithServer(event, action + "d the " + typeLower + " for", server.getName());
             return "Successfully " + action + "d the " + typeLower + " for " + inlineServerDisplayName(server.getName());
         })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {

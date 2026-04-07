@@ -164,7 +164,7 @@ public class DashboardUpdater {
             String editingMessageId = messageId;
             messageEditFuture = channel.editMessageComponentsById(editingMessageId, container).useComponentsV2().submit();
 
-            messageEditFuture.whenCompleteAsync((edit, throwable) -> {
+            messageEditFuture.whenCompleteAsync((_, throwable) -> {
                 if (throwable == null || throwable instanceof CancellationException) return;
                 setMDC(guildManager);
 

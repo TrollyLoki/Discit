@@ -58,7 +58,7 @@ public final class RenameInteractions {
 
         requestAsyncWithMDC(server, "rename", httpsApi -> {
             httpsApi.renameServer(newName);
-        }).thenApplyAsync(withMDC(r -> {
+        }).thenApplyAsync(withMDC(_ -> {
             logActionWithServer(event, "renamed " + inlineServerDisplayName(originalName) + " to", newName);
             return "Successfully renamed " + inlineServerDisplayName(newName);
         })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {

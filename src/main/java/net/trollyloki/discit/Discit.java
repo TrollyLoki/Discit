@@ -33,7 +33,7 @@ public class Discit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Discit.class);
 
-    private static final String BOT_TOKEN = System.getenv("BOT_TOKEN");
+    private static final @Nullable String BOT_TOKEN = System.getenv("BOT_TOKEN");
     public static final String DATA_DIRECTORY;
     public static final boolean ACCEPT_LOCAL_ADDRESSES;
 
@@ -47,6 +47,10 @@ public class Discit {
     private final Map<String, GuildManager> guildManagers = new ConcurrentHashMap<>();
 
     public Discit() throws InterruptedException {
+        if (BOT_TOKEN == null) {
+            throw new IllegalArgumentException("Bot token must be provided via the BOT_TOKEN environment variable");
+        }
+
         this.jda = JDABuilder.createLight(BOT_TOKEN, Collections.emptyList()).build();
         this.jda.addEventListener(new InteractionListener());
 

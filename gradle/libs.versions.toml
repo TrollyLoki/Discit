@@ -1,11 +1,11 @@
 [versions]
-jda = "6.4.0"
-jicsit = "0.1"
+jda = "6.4.1"
+jicsit = "1.0.0"
 logback = "1.5.32"
-jackson = "2.21.1"
+jackson = "3.1.1"
 
 [libraries]
 jda = { module = "net.dv8tion:JDA", version.ref = "jda" }
-jicsit-server = { module = "net.trollyloki.jicsit:server", version.ref = "jicsit" }
+jicsit-server = { module = "net.trollyloki.jicsit:jicsit-server", version.ref = "jicsit" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }

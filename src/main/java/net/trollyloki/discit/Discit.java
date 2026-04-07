@@ -14,7 +14,6 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,8 +74,13 @@ public class Discit {
         this.jda.awaitReady();
 
         for (Guild guild : this.jda.getGuilds()) {
-            // Should probably have a better way of initializing the guild managers
-            getGuildManager(guild.getId());
+            LOGGER.info("Loading data for guild \"{}\"", guild.getName());
+            try {
+                // Should probably have a better way of initializing the guild managers
+                getGuildManager(guild.getId());
+            } catch (Exception e) {
+                LOGGER.error("Failed to load guild manager for guild \"{}\"", guild.getName(), e);
+            }
         }
     }
 
@@ -90,15 +94,7 @@ public class Discit {
     }
 
     public synchronized GuildManager getGuildManager(String guildId) {
-        return guildManagers.computeIfAbsent(guildId, k -> {
-            LOGGER.info("Loading data for guild {}", guildId);
-            try {
-                return GuildManager.load(jda, k);
-            } catch (IOException e) {
-                LOGGER.error("Failed to initialize guild manager for guild {}", guildId, e);
-                throw new RuntimeException(e);
-            }
-        });
+        return guildManagers.computeIfAbsent(guildId, k -> GuildManager.load(jda, k));
     }
 
     private static @Nullable Discit INSTANCE;
@@ -108,7 +104,7 @@ public class Discit {
         return INSTANCE;
     }
 
-    public static void main(String[] args) throws InterruptedException {
+    static void main() throws InterruptedException {
         MessageRequest.setDefaultMentions(Collections.emptySet());
         INSTANCE = new Discit();
 

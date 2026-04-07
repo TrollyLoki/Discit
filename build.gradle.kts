@@ -7,13 +7,13 @@ version = "1.0-SNAPSHOT"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
 repositories {
     mavenCentral()
-    mavenLocal()
+    mavenLocal() // still needed for jicsit for now
 }
 
 dependencies {

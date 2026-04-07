@@ -1,6 +1,5 @@
 package net.trollyloki.discit;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.Channel;
@@ -12,9 +11,11 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.MapperFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.File;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,7 +33,8 @@ public class GuildManager {
 
     private static final Emoji ALERT_EMOJI = Emoji.fromUnicode("⚠️");
 
-    private static final ObjectMapper DATA_MAPPER = new ObjectMapper();
+    private static final JsonMapper DATA_MAPPER = JsonMapper.builder()
+            .enable(MapperFeature.USE_GETTERS_AS_SETTERS).build();
 
     private static File dataFile(String guildId) {
         return new File(Discit.DATA_DIRECTORY, guildId + ".json");
@@ -50,7 +52,7 @@ public class GuildManager {
         this.data = data;
     }
 
-    public static GuildManager load(JDA jda, String guildId) throws IOException {
+    public static GuildManager load(JDA jda, String guildId) {
         File dataFile = dataFile(guildId);
         GuildData data = dataFile.exists() ? DATA_MAPPER.readValue(dataFile, GuildData.class) : new GuildData();
 
@@ -66,7 +68,7 @@ public class GuildManager {
                 try {
                     boolean ignored = dataFile.getParentFile().mkdirs();
                     DATA_MAPPER.writerWithDefaultPrettyPrinter().writeValue(dataFile(guildId), data);
-                } catch (IOException e) {
+                } catch (JacksonException e) {
                     LOGGER.error("Failed to save data for guild {}", guildId, e);
                 }
             }

@@ -25,9 +25,10 @@ public class GameStateCache {
     private static final Logger LOGGER = LoggerFactory.getLogger(GameStateCache.class);
 
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(3);
+    private static final int MAX_TRIES = 10;
 
-    private static long retryAfterMillis(int errorCount) {
-        return switch (errorCount) {
+    private static long retryAfterMillis(int failureCount) {
+        return switch (failureCount) {
             case 0 -> 0;
             case 1 -> 500;
             case 2 -> 1_000;
@@ -43,7 +44,7 @@ public class GameStateCache {
     private final HttpsApi httpsApi;
     private final ScheduledExecutorService executor;
 
-    private int errorCount;
+    private int failureCount;
 
     private @Nullable Future<?> future;
     private @Nullable ServerGameState gameState;
@@ -64,8 +65,9 @@ public class GameStateCache {
     public void refresh() {
         executor.execute(() -> {
             synchronized (this) {
-                if (future != null && !future.isDone()) return;
+                failureCount = 0; // reset failure count upon refresh request
 
+                if (future != null) future.cancel(true);
                 future = executor.submit(this::query);
             }
         });
@@ -116,7 +118,7 @@ public class GameStateCache {
 
             set(gameState, null);
 
-            errorCount = 0;
+            failureCount = 0;
             return;
 
         } catch (ApiException e) {
@@ -134,8 +136,14 @@ public class GameStateCache {
 
         synchronized (this) {
             if (future == null || future.isCancelled()) return;
+            failureCount++;
 
-            long retryAfterMillis = retryAfterMillis(++errorCount);
+            if (failureCount >= MAX_TRIES) {
+                LOGGER.warn("Query failed {} times in a row, giving up for now", failureCount);
+                return;
+            }
+
+            long retryAfterMillis = retryAfterMillis(failureCount);
             LOGGER.warn("Retrying query in {} milliseconds", retryAfterMillis);
             future = executor.schedule(this::query, retryAfterMillis, TimeUnit.MILLISECONDS);
         }

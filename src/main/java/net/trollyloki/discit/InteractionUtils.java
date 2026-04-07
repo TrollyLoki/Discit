@@ -286,6 +286,7 @@ public final class InteractionUtils {
             // Thrown exceptions are always wrapped in a CompletionException
             if (exception.getCause() instanceof ApiException apiException) {
                 message = "Unable" + message + ": " + apiException.getMessage();
+                LOGGER.warn("Unable to execute request on {}: {} ({})", serverNameForLog(server.getName()), apiException.getMessage(), apiException.getErrorCode());
             } else {
                 message = "Failed" + message;
                 LOGGER.warn("Failed to execute request on {}", serverNameForLog(server.getName()), exception.getCause());

@@ -122,7 +122,7 @@ public class GameStateCache {
             return;
 
         } catch (ApiException e) {
-            LOGGER.warn("Unable to query game state of {}: {}", serverNameForLog(server.getName()), e.getMessage());
+            LOGGER.warn("Unable to query game state of {}: {} ({})", serverNameForLog(server.getName()), e.getMessage(), e.getErrorCode());
             if (e instanceof InvalidTokenException) httpsApi.setToken(null);
 
             set(null, e.getMessage());

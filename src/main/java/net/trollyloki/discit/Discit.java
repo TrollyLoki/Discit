@@ -34,11 +34,21 @@ public class Discit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Discit.class);
 
+    private static final String BOT_TOKEN = System.getenv("BOT_TOKEN");
+    public static final String DATA_DIRECTORY;
+    public static final boolean ACCEPT_LOCAL_ADDRESSES;
+
+    static {
+        String dataDirectory = System.getenv("DATA_DIRECTORY");
+        DATA_DIRECTORY = dataDirectory != null ? dataDirectory : "data";
+        ACCEPT_LOCAL_ADDRESSES = "true".equals(System.getenv("ACCEPT_LOCAL_ADDRESSES"));
+    }
+
     private final JDA jda;
     private final Map<String, GuildManager> guildManagers = new ConcurrentHashMap<>();
 
     public Discit() throws InterruptedException {
-        this.jda = JDABuilder.createLight(System.getenv("BOT_TOKEN"), Collections.emptyList()).build();
+        this.jda = JDABuilder.createLight(BOT_TOKEN, Collections.emptyList()).build();
         this.jda.addEventListener(new InteractionListener());
 
         this.jda.updateCommands().addCommands(
@@ -81,6 +91,7 @@ public class Discit {
 
     public synchronized GuildManager getGuildManager(String guildId) {
         return guildManagers.computeIfAbsent(guildId, k -> {
+            LOGGER.info("Loading data for guild {}", guildId);
             try {
                 return GuildManager.load(jda, k);
             } catch (IOException e) {

@@ -27,7 +27,7 @@ public final class AddressUtils {
     public static @Nullable InetAddress validateHostAddress(String host) {
         try {
             InetAddress address = InetAddress.getByName(host);
-            if (isPublic(address) || "true".equals(System.getenv("ACCEPT_LOCAL_ADDRESSES"))) {
+            if (Discit.ACCEPT_LOCAL_ADDRESSES || isPublic(address)) {
                 return address;
             }
         } catch (UnknownHostException ignored) {

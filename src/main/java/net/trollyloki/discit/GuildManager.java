@@ -35,7 +35,7 @@ public class GuildManager {
     private static final ObjectMapper DATA_MAPPER = new ObjectMapper();
 
     private static File dataFile(String guildId) {
-        return new File("data/" + guildId + ".json");
+        return new File(Discit.DATA_DIRECTORY, guildId + ".json");
     }
 
     private final JDA jda;

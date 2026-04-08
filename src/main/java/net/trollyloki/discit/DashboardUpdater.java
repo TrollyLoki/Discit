@@ -162,26 +162,30 @@ public class DashboardUpdater {
             }
 
             String editingMessageId = messageId;
-            messageEditFuture = channel.editMessageComponentsById(editingMessageId, container).useComponentsV2().submit();
+            try {
+                messageEditFuture = channel.editMessageComponentsById(editingMessageId, container).useComponentsV2().submit();
 
-            messageEditFuture.whenCompleteAsync((_, throwable) -> {
-                if (throwable == null || throwable instanceof CancellationException) return;
-                setMDC(guildManager);
+                messageEditFuture.whenCompleteAsync((_, throwable) -> {
+                    if (throwable == null || throwable instanceof CancellationException) return;
+                    setMDC(guildManager);
 
-                if (!(throwable instanceof ErrorResponseException e) || e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE) {
-                    LOGGER.warn("Error editing dashboard message for {}", serverNameForLog(name), throwable);
-                    return;
-                }
+                    if (!(throwable instanceof ErrorResponseException e) || e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE) {
+                        LOGGER.warn("Error editing dashboard message for {}", serverNameForLog(name), throwable);
+                        return;
+                    }
 
-                if (!Objects.equals(messageId, editingMessageId)) {
-                    // A new message has already been sent
-                    return;
-                }
+                    if (!Objects.equals(messageId, editingMessageId)) {
+                        // A new message has already been sent
+                        return;
+                    }
 
-                // Send new message and update messageId
-                createNewMessage(channel, container);
+                    // Send new message and update messageId
+                    createNewMessage(channel, container);
 
-            }, executor);
+                }, executor);
+            } catch (Exception e) {
+                LOGGER.warn("Cannot edit dashboard message for {}", serverNameForLog(name), e);
+            }
         });
     }
 

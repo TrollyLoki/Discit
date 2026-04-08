@@ -138,7 +138,11 @@ public class GuildManager {
         GuildMessageChannel channel = getLogChannel();
         if (channel == null) return;
 
-        channel.sendMessage(user.getAsMention() + " " + action).queue();
+        try {
+            channel.sendMessage(user.getAsMention() + " " + action).queue();
+        } catch (Exception e) {
+            LOGGER.warn("Cannot send action log message", e);
+        }
     }
 
     public void logAlert(String alert) {
@@ -149,7 +153,11 @@ public class GuildManager {
         Role role = getAdminRole();
         if (role != null) text += " " + getAdminRole().getAsMention();
 
-        channel.sendMessage(text).setAllowedMentions(Collections.singleton(Message.MentionType.ROLE)).queue();
+        try {
+            channel.sendMessage(text).setAllowedMentions(Collections.singleton(Message.MentionType.ROLE)).queue();
+        } catch (Exception e) {
+            LOGGER.warn("Cannot send alert message", e);
+        }
     }
 
     public boolean isDashboard(@Nullable Channel channel) {

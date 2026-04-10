@@ -28,16 +28,16 @@ import static net.trollyloki.discit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
 
 @NullMarked
-public final class AdvancedGameSettingsInteractions {
-    private AdvancedGameSettingsInteractions() {
+public final class CreativeModeInteractions {
+    private CreativeModeInteractions() {
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AdvancedGameSettingsInteractions.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CreativeModeInteractions.class);
 
     public static final String
-            AGS_BUTTON_ID = "ags",
-            AGS_ENABLE_BUTTON_ID = "ags-enable",
-            AGS_VALUE_SELECT_ID = "ags-value";
+            CREATIVE_MODE_BUTTON_ID = "creative-mode",
+            CREATIVE_ENABLE_BUTTON_ID = "creative-enable",
+            CREATIVE_VALUE_SELECT_ID = "creative-value";
 
     private static final Emoji WARNING_EMOJI = Emoji.fromUnicode("⚠️");
 
@@ -73,10 +73,10 @@ public final class AdvancedGameSettingsInteractions {
         };
     }
 
-    private static StringSelectMenu phaseSelectMenu(String serverIdString, AdvancedGameSettings ags) {
-        int current = Integer.parseInt(ags.settings().get(AdvancedGameSettings.SET_GAME_PHASE));
+    private static StringSelectMenu phaseSelectMenu(String serverIdString, AdvancedGameSettings settings) {
+        int current = Integer.parseInt(settings.settings().get(AdvancedGameSettings.SET_GAME_PHASE));
 
-        String customId = buildId(AGS_VALUE_SELECT_ID, serverIdString, AdvancedGameSettings.SET_GAME_PHASE);
+        String customId = buildId(CREATIVE_VALUE_SELECT_ID, serverIdString, AdvancedGameSettings.SET_GAME_PHASE);
         StringSelectMenu.Builder selectMenu = StringSelectMenu.create(customId);
         for (int i = current; i <= 7; i++) {
             selectMenu.addOption(getPhaseName(i), Integer.toString(i));
@@ -86,64 +86,64 @@ public final class AdvancedGameSettingsInteractions {
         return selectMenu.build();
     }
 
-    private static Button booleanButton(String serverIdString, AdvancedGameSettings ags, String key) {
-        String customId = buildId(AGS_ENABLE_BUTTON_ID, serverIdString, key);
+    private static Button booleanButton(String serverIdString, AdvancedGameSettings settings, String key) {
+        String customId = buildId(CREATIVE_ENABLE_BUTTON_ID, serverIdString, key);
         String settingName = getSettingName(key);
 
-        if ("true".equalsIgnoreCase(ags.settings().get(key))) {
+        if ("true".equalsIgnoreCase(settings.settings().get(key))) {
             return Button.secondary(customId, settingName).withEmoji(CHECKBOX_CHECKED_EMOJI).asDisabled();
         } else {
             return Button.secondary(customId, settingName).withEmoji(CHECKBOX_EMPTY_EMOJI);
         }
     }
 
-    private static Container settingsContainer(String serverIdString, @Nullable String serverName, AdvancedGameSettings ags) {
-        String header = "# Advanced Game Settings\n## " + escapedServerName(serverName);
-        if (!ags.enabled()) {
-            header += "\n" + WARNING_EMOJI.getFormatted() + " Advanced Game Settings are not currently enabled. Interacting with any of the below controls will automatically enable them for the current session.";
+    private static Container settingsContainer(String serverIdString, @Nullable String serverName, AdvancedGameSettings settings) {
+        String header = "# Creative Mode\n## " + escapedServerName(serverName);
+        if (!settings.enabled()) {
+            header += "\n" + WARNING_EMOJI.getFormatted() + " Creative Mode is not currently enabled. Interacting with any of the below controls will automatically enable it for the current session.";
         }
         return Container.of(
                 TextDisplay.of(header),
                 Separator.createDivider(Separator.Spacing.SMALL),
                 TextDisplay.of("### Gameplay"),
                 ActionRow.of(
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.NO_POWER),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.NO_FUEL),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.NO_UNLOCK_COST),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.UNLOCK_ALTERNATE_RECIPES_INSTANTLY)
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.NO_POWER),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.NO_FUEL),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.NO_UNLOCK_COST),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.UNLOCK_ALTERNATE_RECIPES_INSTANTLY)
                 ),
                 TextDisplay.of("### Player Defaults"),
                 ActionRow.of(
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.NO_BUILD_COST),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.GOD_MODE),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.FLIGHT_MODE)
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.NO_BUILD_COST),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.GOD_MODE),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.FLIGHT_MODE)
                 ),
                 TextDisplay.of("### Creatures"),
                 ActionRow.of(
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.DISABLE_ARACHNID_CREATURES)
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.DISABLE_ARACHNID_CREATURES)
                 ),
                 TextDisplay.of("### Progression\n" + WARNING_EMOJI.getFormatted() + " These settings are **irreversible** unless a previous save is loaded."),
-                ActionRow.of(phaseSelectMenu(serverIdString, ags)),
+                ActionRow.of(phaseSelectMenu(serverIdString, settings)),
                 ActionRow.of(
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.UNLOCK_ALL_TIERS),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.UNLOCK_ALL_RESEARCH),
-                        booleanButton(serverIdString, ags, AdvancedGameSettings.UNLOCK_ALL_IN_AWESOME_SHOP)
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.UNLOCK_ALL_TIERS),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.UNLOCK_ALL_RESEARCH),
+                        booleanButton(serverIdString, settings, AdvancedGameSettings.UNLOCK_ALL_IN_AWESOME_SHOP)
                 )
         );
     }
 
-    public static void onAdvancedGameSettingsButton(ButtonInteractionEvent event, String serverIdString) {
+    public static void onCreativeModeButton(ButtonInteractionEvent event, String serverIdString) {
         Server server = getServerIfAdmin(event, serverIdString);
         if (server == null)
             return;
 
         event.deferReply(true).queue();
 
-        requestAsyncWithMDC(server, "get Advanced Game Settings on",
+        requestAsyncWithMDC(server, "get Creative Mode settings on",
                 HttpsApi::getAdvancedGameSettings
-        ).thenAcceptAsync(withMDC(ags -> {
+        ).thenAcceptAsync(withMDC(settings -> {
 
-            event.getHook().editOriginalComponents(settingsContainer(serverIdString, server.getName(), ags))
+            event.getHook().editOriginalComponents(settingsContainer(serverIdString, server.getName(), settings))
                     .useComponentsV2().queue();
 
         })).exceptionallyAsync(withMDC(throwable -> {
@@ -152,29 +152,29 @@ public final class AdvancedGameSettingsInteractions {
         }));
     }
 
-    public static void onAdvancedGameSettingEnableButton(ButtonInteractionEvent event, String serverIdString, String key) {
-        onAdvancedGameSettingHelper(event, serverIdString, key, "true");
+    public static void onCreativeModeSettingEnableButton(ButtonInteractionEvent event, String serverIdString, String key) {
+        onCreativeModeSettingHelper(event, serverIdString, key, "true");
     }
 
-    public static void onAdvancedGameSettingValueSelect(StringSelectInteractionEvent event, String serverIdString, String key) {
-        onAdvancedGameSettingHelper(event, serverIdString, key, event.getValues().getFirst());
+    public static void onCreativeModeSettingValueSelect(StringSelectInteractionEvent event, String serverIdString, String key) {
+        onCreativeModeSettingHelper(event, serverIdString, key, event.getValues().getFirst());
     }
 
-    private static void onAdvancedGameSettingHelper(ComponentInteraction interaction, String serverIdString, String key, String value) {
+    private static void onCreativeModeSettingHelper(ComponentInteraction interaction, String serverIdString, String key, String value) {
         Server server = getServerIfAdmin(interaction, serverIdString);
         if (server == null)
             return;
 
         interaction.deferEdit().queue();
 
-        Map<String, String> settings = Map.of(key, value);
-        LOGGER.info("Applying Advanced Game Settings {} on {}", settings, serverNameForLog(server.getName()));
+        Map<String, String> applySettings = Map.of(key, value);
+        LOGGER.info("Applying Creative Mode settings {} on {}", applySettings, serverNameForLog(server.getName()));
 
-        requestAsyncWithMDC(server, "apply Advanced Game Settings on", httpsApi -> {
-            httpsApi.applyAdvancedGameSettings(settings);
+        requestAsyncWithMDC(server, "apply Creative Mode settings on", httpsApi -> {
+            httpsApi.applyAdvancedGameSettings(applySettings);
             return httpsApi.getAdvancedGameSettings();
-        }).thenAcceptAsync(withMDC(ags -> {
-            String newValue = ags.settings().get(key);
+        }).thenAcceptAsync(withMDC(settings -> {
+            String newValue = settings.settings().get(key);
 
             String action;
             if (key.equals(AdvancedGameSettings.SET_GAME_PHASE)) {
@@ -182,9 +182,9 @@ public final class AdvancedGameSettingsInteractions {
             } else {
                 action = (newValue.equalsIgnoreCase("true") ? "enabled " : "disabled ") + getSettingName(key);
             }
-            logActionWithServer(interaction, action + " (Advanced Game Setting) on", server.getName());
+            logActionWithServer(interaction, action + " (Creative Mode) on", server.getName());
 
-            interaction.getHook().editOriginalComponents(settingsContainer(serverIdString, server.getName(), ags))
+            interaction.getHook().editOriginalComponents(settingsContainer(serverIdString, server.getName(), settings))
                     .useComponentsV2().queue();
 
         })).exceptionallyAsync(withMDC(throwable -> {

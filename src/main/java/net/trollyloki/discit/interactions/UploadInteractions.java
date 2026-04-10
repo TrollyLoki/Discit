@@ -118,7 +118,7 @@ public final class UploadInteractions {
                 Label.of("Action", "The action to perform with the uploaded save", StringSelectMenu.create("action")
                         .addOption("Nothing", "nothing", "Just upload the save")
                         .addOption("Load", "load", "Load the save")
-                        .addOption("Load with Advanced Game Settings", "load-creative", "Load the save with Advanced Game Settings enabled")
+                        .addOption("Load with Creative Mode", "load-creative", "Load the save with Creative Mode enabled")
                         .setDefaultValues("load")
                         .build())
         ).build();

@@ -223,7 +223,7 @@ public final class AnalyzeSaveInteractions {
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
         components.add(TextDisplay.of("### " + escapeAll(info.header().sessionName())));
         components.add(TextDisplay.of("**Game Duration**\n" + formatGameDuration(info.header().playDuration())));
-        components.add(TextDisplay.of("**Advanced Game Settings Enabled**\n" + (info.header().isAdvancedGameSettingsEnabled() ? "Yes" : "No")));
+        components.add(TextDisplay.of("**Creative Mode Enabled**\n" + (info.header().isAdvancedGameSettingsEnabled() ? "Yes" : "No")));
         components.add(TextDisplay.ofFormat("**Build Version**\n[%1$d](https://satisfactory.wiki.gg/wiki/Special:Search?search=\"%1$d\"+incategory:\"Patch+notes\")", info.header().buildVersion()));
 
         if (info.modMetadata() != null) {

@@ -19,11 +19,11 @@ import java.util.stream.Collectors;
 import static net.trollyloki.discit.InteractionUtils.getGuildManager;
 import static net.trollyloki.discit.LoggingUtils.setMDC;
 import static net.trollyloki.discit.interactions.AddInteractions.*;
-import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.*;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
 import static net.trollyloki.discit.interactions.BackupInteractions.*;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.*;
+import static net.trollyloki.discit.interactions.CreativeModeInteractions.*;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.onInvalidateTokensButton;
 import static net.trollyloki.discit.interactions.ListInteractions.*;
@@ -133,8 +133,8 @@ public class InteractionListener extends ListenerAdapter {
                 case SERVER_OPTIONS_BUTTON_ID -> onServerOptionsButton(event, id[1]);
                 case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionButton(event, id[1], id[2], id[3]);
                 case OPTIONS_RELOAD_BUTTON_ID -> onReloadToApplyServerOptionsButton(event, id[1]);
-                case AGS_BUTTON_ID -> onAdvancedGameSettingsButton(event, id[1]);
-                case AGS_ENABLE_BUTTON_ID -> onAdvancedGameSettingEnableButton(event, id[1], id[2]);
+                case CREATIVE_MODE_BUTTON_ID -> onCreativeModeButton(event, id[1]);
+                case CREATIVE_ENABLE_BUTTON_ID -> onCreativeModeSettingEnableButton(event, id[1], id[2]);
                 case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);
                 case INVALIDATE_TOKENS_BUTTON_ID -> onInvalidateTokensButton(event, id[1]);
                 default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());
@@ -154,7 +154,7 @@ public class InteractionListener extends ListenerAdapter {
                 case LIST_SELECT_ID -> onListSelect(event);
                 case AUTOLOAD_SESSION_NAME_SELECT_ID -> onSetAutoloadSessionNameSelect(event, id[1]);
                 case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionSelect(event, id[1], id[2]);
-                case AGS_VALUE_SELECT_ID -> onAdvancedGameSettingValueSelect(event, id[1], id[2]);
+                case CREATIVE_VALUE_SELECT_ID -> onCreativeModeSettingValueSelect(event, id[1], id[2]);
                 default -> LOGGER.warn("Unknown string select ID {}", event.getComponentId());
             }
         } finally {

@@ -8,11 +8,7 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.utils.TimeFormat;
-import net.trollyloki.jicsit.save.Mod;
-import net.trollyloki.jicsit.save.ModMetadata;
-import net.trollyloki.jicsit.save.SaveFileInfo;
-import net.trollyloki.jicsit.save.SaveFileReader;
-import net.trollyloki.jicsit.save.SaveFormatException;
+import net.trollyloki.jicsit.save.*;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -29,9 +25,7 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import static net.trollyloki.discit.FormattingUtils.escapeAll;
-import static net.trollyloki.discit.FormattingUtils.formatGameDuration;
-import static net.trollyloki.discit.FormattingUtils.safeMonospace;
+import static net.trollyloki.discit.FormattingUtils.*;
 import static net.trollyloki.discit.InteractionUtils.findMessageAttachments;
 import static net.trollyloki.discit.LoggingUtils.withMDC;
 
@@ -230,16 +224,18 @@ public final class AnalyzeSaveInteractions {
         components.add(TextDisplay.of("### " + escapeAll(info.header().sessionName())));
         components.add(TextDisplay.of("**Game Duration**\n" + formatGameDuration(info.header().playDuration())));
         components.add(TextDisplay.of("**Advanced Game Settings Enabled**\n" + (info.header().isAdvancedGameSettingsEnabled() ? "Yes" : "No")));
-        components.add(TextDisplay.of("**Modded**\n" + (info.header().isModded() ? "Yes" : "No")));
 
-        List<Mod> mods = getMods(info);
-        if (mods != null) {
-            components.add(TextDisplay.of("### Mods\n" + (
-                    mods.isEmpty() ? "*Unknown*" : mods.stream().map(mod ->
-                            // escaping special characters with backslashes doesn't seem to work within masked links
-                            "- [%s %s](https://ficsit.app/mod/%s)".formatted(mod.name(), mod.version(), mod.reference())
-                    ).collect(Collectors.joining("\n"))
-            )));
+        if (info.modMetadata() != null) {
+            components.add(TextDisplay.of("**Modded**\n" + (info.header().isModded() ? "Yes" : "No")));
+            List<Mod> mods = getMods(info);
+            if (mods != null) {
+                components.add(TextDisplay.of("### Mods\n" + (
+                        mods.isEmpty() ? "*None*" : mods.stream().map(mod ->
+                                // escaping special characters with backslashes doesn't seem to work within masked links
+                                "- [%s %s](https://ficsit.app/mod/%s)".formatted(mod.name(), mod.version(), mod.reference())
+                        ).collect(Collectors.joining("\n"))
+                )));
+            }
         }
 
         components.add(Separator.createDivider(Separator.Spacing.SMALL));
@@ -256,15 +252,10 @@ public final class AnalyzeSaveInteractions {
     private static @Nullable List<Mod> getMods(SaveFileInfo info) {
         try {
             ModMetadata modMetadata = info.parseModMetadata();
-            if (modMetadata != null) {
-                return modMetadata.mods();
-            }
+            return modMetadata == null ? null : modMetadata.mods();
         } catch (SaveFormatException e) {
-            if (info.header().isModded()) {
-                return Collections.emptyList();
-            }
+            return null;
         }
-        return null;
     }
 
 }

@@ -13,11 +13,12 @@ The message context command feature (right click on a message -> Apps -> Discit 
 
 ### Settings
 The `/settings` command can be used to configure global app settings for a Discord server.
-- Only members with the "Manager Server" permission can change the settings
+Most settings can only be changed by members with the "Manager Server" permission.
 - An administrator role can be chosen to allow members without the "Manager Server" permission to use the below features
 - A dashboard channel can be chosen to display live server status information and shortcut action buttons
 - A log channel can be chosen to receive log messages when actions are performed
 - Automated alerts mentioning the administrator role if a server goes offline for a certain amount of time can be configured
+  - This setting can be changed by anyone with the administrator role
 
 ### Add Servers
 The `/add` command can be used to add a server given a host name or IP address and port number.

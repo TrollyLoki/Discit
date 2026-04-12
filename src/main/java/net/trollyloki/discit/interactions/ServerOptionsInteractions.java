@@ -3,9 +3,11 @@ package net.trollyloki.discit.interactions;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.container.Container;
+import net.dv8tion.jda.api.components.container.ContainerChildComponent;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
+import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.components.ComponentInteraction;
@@ -24,7 +26,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 import static net.trollyloki.discit.FormattingUtils.*;
 import static net.trollyloki.discit.InteractionListener.buildId;
@@ -42,7 +43,10 @@ public final class ServerOptionsInteractions {
     public static final String
             SERVER_OPTIONS_BUTTON_ID = "server-options",
             SET_SERVER_OPTION_COMPONENT_ID = "set-server-option",
-            AUTOLOAD_SESSION_NAME_SELECT_ID = "autoload-session-name";
+            AUTOLOAD_SESSION_NAME_SELECT_ID = "autoload-session-name",
+            OPTIONS_RELOAD_BUTTON_ID = "options-reload";
+
+    private static final Emoji RELOAD_EMOJI = Emoji.fromUnicode("🔄");
 
     private static StringSelectMenu autoloadSessionNameSelectMenu(String serverIdString, ServerSessions sessions, ServerGameState gameState) {
         String customId = buildId(AUTOLOAD_SESSION_NAME_SELECT_ID, serverIdString);
@@ -185,14 +189,22 @@ public final class ServerOptionsInteractions {
     }
 
     private static Button booleanButton(String serverIdString, ServerOptions options, String key) {
-        Function<String, String> buildId = value -> buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, key, value);
-        String optionName = getOptionName(key);
-
+        String value;
+        Emoji emoji;
         if ("true".equalsIgnoreCase(getPendingOrCurrentValue(options, key))) {
-            return Button.secondary(buildId.apply("false"), optionName).withEmoji(CHECKBOX_CHECKED_EMOJI);
+            value = "false";
+            emoji = CHECKBOX_CHECKED_EMOJI;
         } else {
-            return Button.secondary(buildId.apply("true"), optionName).withEmoji(CHECKBOX_EMPTY_EMOJI);
+            value = "true";
+            emoji = CHECKBOX_EMPTY_EMOJI;
         }
+
+        if (options.pending().containsKey(key)) {
+            emoji = RELOAD_EMOJI;
+        }
+
+        return Button.secondary(buildId(SET_SERVER_OPTION_COMPONENT_ID, serverIdString, key, value), getOptionName(key))
+                .withEmoji(emoji);
     }
 
     private record OptionsInfo(ServerOptions options, ServerSessions sessions, ServerGameState gameState) {
@@ -202,28 +214,39 @@ public final class ServerOptionsInteractions {
     }
 
     private static Container optionsContainer(String serverIdString, @Nullable String serverName, OptionsInfo optionsInfo) {
-        return Container.of(
-                TextDisplay.of("# Server Options\n## " + escapedServerName(serverName)),
-                Separator.createDivider(Separator.Spacing.SMALL),
-                TextDisplay.of("### Dedicated Server"),
-                TextDisplay.of(AUTOLOAD_SESSION_NAME),
-                ActionRow.of(autoloadSessionNameSelectMenu(serverIdString, optionsInfo.sessions, optionsInfo.gameState)),
-                ActionRow.of(
-                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.AUTO_PAUSE),
-                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.AUTO_SAVE_ON_DISCONNECT)
-                ),
-                TextDisplay.of("### Gameplay"),
-                TextDisplay.of(getOptionName(ServerOptions.AUTOSAVE_INTERVAL)),
-                ActionRow.of(autosaveIntervalSelectMenu(serverIdString, optionsInfo.options)),
-                TextDisplay.of(getOptionName(ServerOptions.SERVER_RESTART_SCHEDULE)),
-                ActionRow.of(restartScheduleSelectMenu(serverIdString, optionsInfo.options)),
-                ActionRow.of(
-                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.DISABLE_SEASONAL_EVENTS),
-                        booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_GAMEPLAY_DATA)
-                ),
-                TextDisplay.of(getOptionName(ServerOptions.NETWORK_QUALITY)),
-                ActionRow.of(networkQualitySelectMenu(serverIdString, optionsInfo.options))
-        );
+        List<ContainerChildComponent> components = new ArrayList<>(17);
+
+        components.add(TextDisplay.of("# Server Options\n## " + escapedServerName(serverName)));
+        components.add(Separator.createDivider(Separator.Spacing.SMALL));
+
+        components.add(TextDisplay.of("### Dedicated Server"));
+        components.add(TextDisplay.of(AUTOLOAD_SESSION_NAME));
+        components.add(ActionRow.of(autoloadSessionNameSelectMenu(serverIdString, optionsInfo.sessions, optionsInfo.gameState)));
+        components.add(ActionRow.of(
+                booleanButton(serverIdString, optionsInfo.options, ServerOptions.AUTO_PAUSE),
+                booleanButton(serverIdString, optionsInfo.options, ServerOptions.AUTO_SAVE_ON_DISCONNECT)
+        ));
+
+        components.add(TextDisplay.of("### Gameplay"));
+        components.add(TextDisplay.of(getOptionName(ServerOptions.AUTOSAVE_INTERVAL)));
+        components.add(ActionRow.of(autosaveIntervalSelectMenu(serverIdString, optionsInfo.options)));
+        components.add(TextDisplay.of(getOptionName(ServerOptions.SERVER_RESTART_SCHEDULE)));
+        components.add(ActionRow.of(restartScheduleSelectMenu(serverIdString, optionsInfo.options)));
+        components.add(ActionRow.of(
+                booleanButton(serverIdString, optionsInfo.options, ServerOptions.DISABLE_SEASONAL_EVENTS),
+                booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_GAMEPLAY_DATA)
+        ));
+        components.add(TextDisplay.of((optionsInfo.options.pending().containsKey(ServerOptions.NETWORK_QUALITY)
+                ? RELOAD_EMOJI.getFormatted() + " " : "") + getOptionName(ServerOptions.NETWORK_QUALITY)));
+        components.add(ActionRow.of(networkQualitySelectMenu(serverIdString, optionsInfo.options)));
+
+        if (!optionsInfo.options.pending().isEmpty()) {
+            components.add(Separator.createDivider(Separator.Spacing.SMALL));
+            components.add(TextDisplay.of(RELOAD_EMOJI.getFormatted() + " Some changes require a reload or restart to be applied"));
+            components.add(ActionRow.of(Button.primary(buildId(OPTIONS_RELOAD_BUTTON_ID, serverIdString), "Reload Session")));
+        }
+
+        return Container.of(components);
     }
 
     public static void onServerOptionsButton(ButtonInteractionEvent event, String serverIdString) {
@@ -308,6 +331,25 @@ public final class ServerOptionsInteractions {
         })).exceptionallyAsync(withMDC(throwable -> {
             interaction.getHook().sendMessage(InteractionUtils.exceptionMessage(throwable)).setEphemeral(true).queue();
             return null;
+        }));
+    }
+
+    public static void onReloadToApplyServerOptionsButton(ButtonInteractionEvent event, String serverIdString) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        event.editComponents(TextDisplay.of("Reloading " + inlineServerDisplayName(server.getName()) + "..."))
+                .useComponentsV2().queue();
+
+        LOGGER.info("Reloading {} to apply server options", serverNameForLog(server.getName()));
+
+        reloadAsyncWithMDC(server).thenApplyAsync(withMDC(_ -> {
+            logActionWithServer(event, "reloaded", server.getName());
+            return "Successfully reloaded " + inlineServerDisplayName(server.getName());
+        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
+            event.getHook().editOriginalComponents(TextDisplay.of(message))
+                    .useComponentsV2().queue();
         }));
     }
 

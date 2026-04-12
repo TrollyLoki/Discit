@@ -24,18 +24,12 @@ import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
 import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.BackupInteractions.onBackupCommand;
-import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_BUTTON_ID;
-import static net.trollyloki.discit.interactions.ChangePasswordInteractions.CHANGE_PASSWORD_MODAL_ID;
-import static net.trollyloki.discit.interactions.ChangePasswordInteractions.onChangePasswordButton;
-import static net.trollyloki.discit.interactions.ChangePasswordInteractions.onChangePasswordModal;
+import static net.trollyloki.discit.interactions.ChangePasswordInteractions.*;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.onInvalidateTokensButton;
 import static net.trollyloki.discit.interactions.ListInteractions.*;
 import static net.trollyloki.discit.interactions.ReloadInteractions.*;
-import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_BUTTON_ID;
-import static net.trollyloki.discit.interactions.RenameInteractions.RENAME_MODAL_ID;
-import static net.trollyloki.discit.interactions.RenameInteractions.onRenameButton;
-import static net.trollyloki.discit.interactions.RenameInteractions.onRenameModal;
+import static net.trollyloki.discit.interactions.RenameInteractions.*;
 import static net.trollyloki.discit.interactions.SaveInteractions.*;
 import static net.trollyloki.discit.interactions.ServerOptionsInteractions.*;
 import static net.trollyloki.discit.interactions.SettingsInteractions.*;
@@ -134,6 +128,7 @@ public class InteractionListener extends ListenerAdapter {
                 case RENAME_BUTTON_ID -> onRenameButton(event, id[1]);
                 case SERVER_OPTIONS_BUTTON_ID -> onServerOptionsButton(event, id[1]);
                 case SET_SERVER_OPTION_COMPONENT_ID -> onSetServerOptionButton(event, id[1], id[2], id[3]);
+                case OPTIONS_RELOAD_BUTTON_ID -> onReloadToApplyServerOptionsButton(event, id[1]);
                 case AGS_BUTTON_ID -> onAdvancedGameSettingsButton(event, id[1]);
                 case AGS_ENABLE_BUTTON_ID -> onAdvancedGameSettingEnableButton(event, id[1], id[2]);
                 case CHANGE_PASSWORD_BUTTON_ID -> onChangePasswordButton(event, id[1], id[2]);

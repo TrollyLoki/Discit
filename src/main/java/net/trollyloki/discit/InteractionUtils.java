@@ -315,6 +315,13 @@ public final class InteractionUtils {
         }
     }
 
+    public static CompletableFuture<@Nullable Void> reloadAsyncWithMDC(Server server) {
+        return requestAsyncWithMDC(server, "reload", httpsApi -> {
+            httpsApi.save(Discit.RELOAD_SAVE_NAME);
+            httpsApi.loadSave(Discit.RELOAD_SAVE_NAME, false);
+        });
+    }
+
     public static CompletableFuture<SaveInfo> saveAsyncWithMDC(Server server, @Nullable String saveName) {
         return requestAsyncWithMDC(server, "save", httpsApi -> {
 

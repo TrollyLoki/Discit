@@ -33,6 +33,8 @@ public class Discit {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Discit.class);
 
+    public static final String RELOAD_SAVE_NAME = "reload_continue";
+
     private static final @Nullable String BOT_TOKEN = System.getenv("BOT_TOKEN");
     public static final String DATA_DIRECTORY;
     public static final boolean ACCEPT_LOCAL_ADDRESSES;

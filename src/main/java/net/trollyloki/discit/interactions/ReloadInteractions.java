@@ -36,8 +36,6 @@ public final class ReloadInteractions {
             RELOAD_BUTTON_ID = "reload",
             RELOAD_MODAL_ID = "reload";
 
-    private static final String RELOAD_SAVE_NAME = "reload_continue";
-
     public static void onReloadCommand(SlashCommandInteractionEvent event) {
         Map<UUID, Server> servers = getAllServersIfAdmin(event);
         if (servers == null)
@@ -90,10 +88,7 @@ public final class ReloadInteractions {
 
             LOGGER.info("Reloading {}", serverNameForLog(server.getName()));
 
-            requestAsyncWithMDC(server, "reload", httpsApi -> {
-                httpsApi.save(RELOAD_SAVE_NAME);
-                httpsApi.loadSave(RELOAD_SAVE_NAME, false);
-            }).thenApplyAsync(withMDC(_ -> {
+            reloadAsyncWithMDC(server).thenApplyAsync(withMDC(_ -> {
                 logActionWithServer(interaction, "reloaded", server.getName());
                 return "Successfully reloaded " + inlineServerDisplayName(server.getName());
             })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {

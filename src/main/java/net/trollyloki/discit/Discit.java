@@ -38,11 +38,28 @@ public class Discit {
     private static final @Nullable String BOT_TOKEN = System.getenv("BOT_TOKEN");
     public static final String DATA_DIRECTORY;
     public static final boolean ACCEPT_LOCAL_ADDRESSES;
+    public static final long POLL_INTERVAL_MILLIS;
+    public static final long OFFLINE_TIMEOUT_MILLIS;
+    public static final long DEAD_TIMEOUT_MILLIS;
+    public static final long DEAD_POLL_INTERVAL_MILLIS;
 
     static {
         String dataDirectory = System.getenv("DATA_DIRECTORY");
-        DATA_DIRECTORY = dataDirectory != null ? dataDirectory : "data";
+        DATA_DIRECTORY = dataDirectory == null ? "data" : dataDirectory;
+
         ACCEPT_LOCAL_ADDRESSES = "true".equals(System.getenv("ACCEPT_LOCAL_ADDRESSES"));
+
+        String pollInterval = System.getenv("POLL_INTERVAL");
+        POLL_INTERVAL_MILLIS = pollInterval == null ? 500 : Long.parseLong(pollInterval);
+
+        String offlineTimeout = System.getenv("OFFLINE_TIMEOUT");
+        OFFLINE_TIMEOUT_MILLIS = offlineTimeout == null ? 5_000 : Long.parseLong(offlineTimeout);
+
+        String deadTimeout = System.getenv("DEAD_TIMEOUT");
+        DEAD_TIMEOUT_MILLIS = deadTimeout == null ? 60_000 : Long.parseLong(deadTimeout);
+
+        String deadPollInterval = System.getenv("DEAD_POLL_INTERVAL");
+        DEAD_POLL_INTERVAL_MILLIS = deadPollInterval == null ? 10_000 : Long.parseLong(deadPollInterval);
     }
 
     private final JDA jda;

@@ -62,6 +62,14 @@ Slash commands allow certain dashboard actions to be performed in other channels
 - `BOT_TOKEN` - Token from the Bot section of the Discord Developer Portal (required, the application will refuse to start if not set)
 - `DATA_DIRECTORY` - Path to the directory where settings and server info should be stored (defaults to "data" if not set)
 - `ACCEPT_LOCAL_ADDRESSES` - "true" to disable the address filter (Only set this variable if you need to test with a local server)
+- `POLL_INTERVAL` - Interval in milliseconds between Lightweight Query API poll requests (defaults to 500 milliseconds
+  if not set)
+- `OFFLINE_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered offline (defaults
+  to 5 seconds if not set)
+- `DEAD_TIMEOUT` - Delay in milliseconds before a server that has stopped responding is considered dead (defaults to 60
+  seconds if not set)
+- `DEAD_POLL_INTERVAL` - Interval in milliseconds between poll requests to dead servers (defaults to 10 seconds if not
+  set)
 
 ### Data Storage
 All persistent data is stored within the directory refered to by the `DATA_DIRECTORY` environment variable.

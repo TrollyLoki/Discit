@@ -27,11 +27,7 @@ public class ServerMonitor implements Closeable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerMonitor.class);
 
-    private static final long
-            POLL_INTERVAL_MILLIS = Duration.ofMillis(500).toMillis(),
-            OFFLINE_TIMEOUT_MILLIS = Duration.ofSeconds(5).toMillis(),
-            DEAD_TIMEOUT_NANOS = Duration.ofMinutes(1).toNanos(),
-            DEAD_POLL_INTERVAL_MILLIS = Duration.ofSeconds(10).toMillis();
+    private static final long DEAD_TIMEOUT_NANOS = Discit.DEAD_TIMEOUT_MILLIS * 1_000_000;
 
     private final GuildManager guildManager;
     private final UUID serverId;
@@ -122,8 +118,8 @@ public class ServerMonitor implements Closeable {
 
         requestServerStateExecutor.schedule(this::requestServerState,
                 (System.nanoTime() - lastResponseNanos) > DEAD_TIMEOUT_NANOS
-                        ? DEAD_POLL_INTERVAL_MILLIS
-                        : POLL_INTERVAL_MILLIS,
+                        ? Discit.DEAD_POLL_INTERVAL_MILLIS
+                        : Discit.POLL_INTERVAL_MILLIS,
                 TimeUnit.MILLISECONDS
         );
     }
@@ -201,7 +197,7 @@ public class ServerMonitor implements Closeable {
 
             updateDashboardInfo(ServerStatus.OFFLINE, null);
 
-        }, OFFLINE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        }, Discit.OFFLINE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     private void updateDashboardInfo(ServerStatus status, @Nullable Duration ping) {

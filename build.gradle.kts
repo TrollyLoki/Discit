@@ -35,7 +35,8 @@ application {
 
 jib {
     to {
-        image = "trollyloki/discit:$version"
+        image = "trollyloki/discit"
+        tags = setOf("$version")
     }
     outputPaths {
         val path = layout.buildDirectory.file("discit-$version-image").get().asFile.path

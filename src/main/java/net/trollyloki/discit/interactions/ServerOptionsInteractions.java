@@ -203,6 +203,14 @@ public final class ServerOptionsInteractions {
                 .withEmoji(emoji);
     }
 
+    private static TextDisplay labelText(ServerOptions options, String key) {
+        String string = getOptionName(key);
+        if (options.pending().containsKey(key)) {
+            string = RELOAD_EMOJI.getFormatted() + " " + string;
+        }
+        return TextDisplay.of(string);
+    }
+
     private record OptionsInfo(ServerOptions options, ServerSessions sessions, ServerGameState gameState) {
         static OptionsInfo get(HttpsApi httpsApi) {
             return new OptionsInfo(httpsApi.getServerOptions(), httpsApi.enumerateSessions(), httpsApi.queryServerState());
@@ -224,22 +232,21 @@ public final class ServerOptionsInteractions {
         ));
 
         components.add(TextDisplay.of("### Gameplay"));
-        components.add(TextDisplay.of(getOptionName(ServerOptions.AUTOSAVE_INTERVAL)));
+        components.add(labelText(optionsInfo.options, ServerOptions.AUTOSAVE_INTERVAL));
         components.add(ActionRow.of(autosaveIntervalSelectMenu(serverIdString, optionsInfo.options)));
-        components.add(TextDisplay.of(getOptionName(ServerOptions.SERVER_RESTART_SCHEDULE)));
+        components.add(labelText(optionsInfo.options, ServerOptions.SERVER_RESTART_SCHEDULE));
         components.add(ActionRow.of(restartScheduleSelectMenu(serverIdString, optionsInfo.options)));
         components.add(ActionRow.of(
                 booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_CRASH_REPORTS),
                 booleanButton(serverIdString, optionsInfo.options, ServerOptions.SEND_GAMEPLAY_DATA)
         ));
-        components.add(TextDisplay.of((optionsInfo.options.pending().containsKey(ServerOptions.NETWORK_QUALITY)
-                ? RELOAD_EMOJI.getFormatted() + " " : "") + getOptionName(ServerOptions.NETWORK_QUALITY)));
+        components.add(labelText(optionsInfo.options, ServerOptions.NETWORK_QUALITY));
         components.add(ActionRow.of(valueSelectMenu(serverIdString, optionsInfo.options, ServerOptions.NETWORK_QUALITY, NETWORK_QUALITIES)));
         components.add(ActionRow.of(
                 booleanButton(serverIdString, optionsInfo.options, ServerOptions.ENABLE_SEASONAL_EVENTS)
         ));
         components.add(TextDisplay.of("### World"));
-        components.add(TextDisplay.of(getOptionName(ServerOptions.WEATHER_PRESET)));
+        components.add(labelText(optionsInfo.options, ServerOptions.WEATHER_PRESET));
         components.add(ActionRow.of(valueSelectMenu(serverIdString, optionsInfo.options, ServerOptions.WEATHER_PRESET, WEATHER_PRESETS)));
         components.add(ActionRow.of(
                 booleanButton(serverIdString, optionsInfo.options, ServerOptions.RAIN_POST_PROCESSING_EFFECT),

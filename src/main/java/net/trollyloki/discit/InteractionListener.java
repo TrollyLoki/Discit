@@ -99,6 +99,7 @@ public class InteractionListener extends ListenerAdapter {
                 case ADMIN_ROLE_SELECT_ID -> onAdminRoleSelect(event);
                 case DASHBOARD_CHANNEL_SELECT_ID -> onDashboardChannelSelect(event);
                 case LOG_CHANNEL_SELECT_ID -> onLogChannelSelect(event);
+                case SERVER_CHANNEL_SELECT_ID -> onServerChannelSelect(event, id[1]);
                 default -> LOGGER.warn("Unknown entity select ID {}", event.getComponentId());
             }
         } finally {
@@ -120,6 +121,7 @@ public class InteractionListener extends ListenerAdapter {
                 case LIST_AUTHENTICATE_BUTTON_ID -> onAuthenticateButton(event, id[1], true);
                 case LIST_DEAUTHENTICATE_BUTTON_ID -> onDeauthenticateButtonOnList(event, id[1]);
                 case LIST_REMOVE_BUTTON_ID -> onListRemoveButton(event, id[1]);
+                case UNSET_SERVER_CHANNEL_BUTTON_ID -> onUnsetServerChannelButton(event, id[1]);
                 case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
                 case RELOAD_BUTTON_ID -> onReloadButton(event, id[1]);
                 case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);

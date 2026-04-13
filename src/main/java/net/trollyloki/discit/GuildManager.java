@@ -256,4 +256,43 @@ public class GuildManager {
         }
     }
 
+    public @Nullable Server getChannelServer(String channelId) {
+        for (ServerData server : data.getServers().values()) {
+            if (channelId.equals(server.getServerChannelId())) {
+                return server;
+            }
+        }
+        return null;
+    }
+
+    public @Nullable GuildMessageChannel getServerChannel(UUID serverId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            String channelId = server.getServerChannelId();
+            if (channelId == null) return null;
+            return getGuild().getChannelById(GuildMessageChannel.class, channelId);
+        }
+        return null;
+    }
+
+    public synchronized @Nullable Server setServerChannel(UUID serverId, @Nullable String channelId) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+
+            Server channelServer = channelId == null ? null : getChannelServer(channelId);
+            if (channelServer != null) {
+                // Channel is already associated with a server
+                return channelServer;
+            }
+
+            server.setServerChannelId(channelId);
+            save();
+
+            return channelId == null ? null : server;
+        } else {
+            LOGGER.warn("Could not set server channel for unknown server {}", serverId);
+            return null;
+        }
+    }
+
 }

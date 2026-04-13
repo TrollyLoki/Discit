@@ -10,7 +10,6 @@ import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.IMentionable;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
@@ -20,7 +19,6 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.function.BiConsumer;
 
 import static net.trollyloki.discit.FormattingUtils.formatDuration;
@@ -40,8 +38,6 @@ public final class SettingsInteractions {
 
     private static final int[] DELAY_OPTIONS_SECONDS = {-1, 5, 10, 20, 30, 60, 2 * 60, 3 * 60, 4 * 60, 5 * 60, 10 * 60, 20 * 60, 30 * 60, 60 * 60};
 
-    private static final List<ChannelType> GUILD_MESSAGE_CHANNEL_TYPES = ChannelType.guildTypes().stream().filter(ChannelType::isMessage).toList();
-
     public static void onSettingsCommand(SlashCommandInteractionEvent event) {
         if (isNotAdmin(event))
             return;
@@ -50,24 +46,19 @@ public final class SettingsInteractions {
         Member member = event.getMember();
         boolean canManageGuild = member != null && member.hasPermission(Permission.MANAGE_SERVER);
 
-        EntitySelectMenu.Builder adminRoleSelect = EntitySelectMenu
-                .create(ADMIN_ROLE_SELECT_ID, EntitySelectMenu.SelectTarget.ROLE);
+        EntitySelectMenu.Builder adminRoleSelect = EntitySelectMenu.create(ADMIN_ROLE_SELECT_ID, EntitySelectMenu.SelectTarget.ROLE);
         Role currentAdminRole = guildManager.getAdminRole();
         if (currentAdminRole != null) {
             adminRoleSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentAdminRole));
         }
 
-        EntitySelectMenu.Builder dashboardChannelSelect = EntitySelectMenu
-                .create(DASHBOARD_CHANNEL_SELECT_ID, EntitySelectMenu.SelectTarget.CHANNEL)
-                .setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
+        EntitySelectMenu.Builder dashboardChannelSelect = messageChannelSelect(DASHBOARD_CHANNEL_SELECT_ID);
         GuildMessageChannel currentDashboardChannel = guildManager.getDashboardChannel();
         if (currentDashboardChannel != null) {
             dashboardChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentDashboardChannel));
         }
 
-        EntitySelectMenu.Builder logChannelSelect = EntitySelectMenu
-                .create(LOG_CHANNEL_SELECT_ID, EntitySelectMenu.SelectTarget.CHANNEL)
-                .setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
+        EntitySelectMenu.Builder logChannelSelect = messageChannelSelect(LOG_CHANNEL_SELECT_ID);
         GuildMessageChannel currentLogChannel = guildManager.getLogChannel();
         if (currentLogChannel != null) {
             logChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentLogChannel));
@@ -92,11 +83,11 @@ public final class SettingsInteractions {
                 Separator.createInvisible(Separator.Spacing.LARGE),
                 TextDisplay.of("### Dashboard Channel"),
                 TextDisplay.of("Live server statuses will be displayed in this channel"),
-                ActionRow.of(dashboardChannelSelect.setPlaceholder("Select a text channel").setDisabled(!canManageGuild).build()),
+                ActionRow.of(dashboardChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.LARGE),
                 TextDisplay.of("### Log Channel"),
                 TextDisplay.of("A message will be sent to this channel each time an action that requires administrator access is performed"),
-                ActionRow.of(logChannelSelect.setPlaceholder("Select a text channel").setDisabled(!canManageGuild).build()),
+                ActionRow.of(logChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
                 Separator.createInvisible(Separator.Spacing.LARGE),
                 TextDisplay.of("### Offline Alert Delay"),
                 TextDisplay.of("If a server goes and stays offline for this amount of time a message mentioning the administrator role will be sent to the log channel"),
@@ -137,8 +128,7 @@ public final class SettingsInteractions {
 
         IMentionable selection = event.getValues().getFirst();
 
-        GuildManager guildManager = getGuildManager(event);
-        setter.accept(guildManager, selection.getId());
+        setter.accept(getGuildManager(event), selection.getId());
 
         return selection;
     }

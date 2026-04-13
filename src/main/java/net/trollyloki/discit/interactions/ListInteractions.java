@@ -1,17 +1,23 @@
 package net.trollyloki.discit.interactions;
 
+import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
 import net.dv8tion.jda.api.components.container.Container;
 import net.dv8tion.jda.api.components.label.Label;
+import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
+import net.dv8tion.jda.api.components.separator.Separator;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.IMentionable;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.EntitySelectInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.Interaction;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
@@ -50,9 +56,11 @@ public final class ListInteractions {
             LIST_AUTHENTICATE_BUTTON_ID = "list-authenticate",
             AUTHENTICATE_MODAL_ID = "authenticate",
             LIST_DEAUTHENTICATE_BUTTON_ID = "list-deauthenticate",
-            LIST_REMOVE_BUTTON_ID = "list-remove";
+            LIST_REMOVE_BUTTON_ID = "list-remove",
+            SERVER_CHANNEL_SELECT_ID = "server-channel",
+            UNSET_SERVER_CHANNEL_BUTTON_ID = "unset-server-channel";
 
-    private static Container serverDetailsContainer(String serverIdString, Server server) {
+    private static Container serverDetailsContainer(Interaction interaction, String serverIdString, Server server) {
         List<Button> buttons = new ArrayList<>(3);
         buttons.add(Button.primary(buildId(LIST_AUTHENTICATE_BUTTON_ID, serverIdString), server.hasToken() ? "Reauthenticate" : "Authenticate"));
         if (server.hasToken()) {
@@ -60,12 +68,24 @@ public final class ListInteractions {
         }
         buttons.add(Button.danger(buildId(LIST_REMOVE_BUTTON_ID, serverIdString), "Remove"));
 
+        EntitySelectMenu.Builder serverChannelSelect = messageChannelSelect(buildId(SERVER_CHANNEL_SELECT_ID, serverIdString));
+        GuildMessageChannel currentServerChannel = getGuildManager(interaction).getServerChannel(UUID.fromString(serverIdString));
+        if (currentServerChannel != null) {
+            serverChannelSelect.setDefaultValues(EntitySelectMenu.DefaultValue.from(currentServerChannel));
+        }
+
         return Container.of(
                 TextDisplay.of("## " + escapedServerName(server.getName())),
                 TextDisplay.of("### Host\n||```" + server.getHost() + "```||"),
                 TextDisplay.of("### Port\n```" + server.getPort() + "```"),
                 TextDisplay.of("### Fingerprint\n```" + server.getFingerprint() + "```"),
-                ActionRow.of(buttons)
+                ActionRow.of(buttons),
+                Separator.createDivider(Separator.Spacing.LARGE),
+                TextDisplay.of("### Server Channel"),
+                TextDisplay.of("Slash commands sent in this channel will select this server automatically"),
+                ActionRow.of(serverChannelSelect.setPlaceholder("Select a channel").build()),
+                ActionRow.of(Button.secondary(buildId(UNSET_SERVER_CHANNEL_BUTTON_ID, serverIdString), "Unset Server Channel")
+                        .withDisabled(currentServerChannel == null))
         );
     }
 
@@ -75,6 +95,13 @@ public final class ListInteractions {
                 ? StringSelectMenu.create("null").addOption("null", "null").setPlaceholder("No servers added").setDisabled(true)
                 : serverSelectMenu(LIST_SELECT_ID, servers).setPlaceholder("Select a server to view details")
         ).build());
+    }
+
+    private static MessageTopLevelComponent[] detailsComponents(Interaction interaction, String serverIdString, Server server) {
+        return new MessageTopLevelComponent[]{
+                serverDetailsContainer(interaction, serverIdString, server),
+                serverSelectForDetails(interaction)
+        };
     }
 
     public static void onListCommand(SlashCommandInteractionEvent event) {
@@ -101,10 +128,7 @@ public final class ListInteractions {
         if (server == null)
             return;
 
-        event.editComponents(
-                serverDetailsContainer(serverIdString, server),
-                serverSelectForDetails(event)
-        ).useComponentsV2().queue();
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
     }
 
     public static void onListRemoveButton(ButtonInteractionEvent event, String serverIdString) {
@@ -184,10 +208,8 @@ public final class ListInteractions {
                 return;
 
             if (isOnList) {
-                event.getHook().editOriginalComponents(
-                        serverDetailsContainer(serverIdString, server),
-                        serverSelectForDetails(event)
-                ).useComponentsV2().queue();
+                event.getHook().editOriginalComponents(detailsComponents(event, serverIdString, server))
+                        .useComponentsV2().queue();
             }
         }));
     }
@@ -199,13 +221,52 @@ public final class ListInteractions {
 
         getGuildManager(event).setServerToken(UUID.fromString(serverIdString), null);
 
-        event.editComponents(
-                serverDetailsContainer(serverIdString, server),
-                serverSelectForDetails(event)
-        ).useComponentsV2().queue();
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
 
         event.getHook().sendMessage("Authentication removed").setEphemeral(true).queue();
         logActionWithServer(event, "removed the authentication token for", server.getName());
+    }
+
+    public static void onServerChannelSelect(EntitySelectInteractionEvent event, String serverIdString) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        IMentionable selection = event.getValues().getFirst();
+
+        Server channelServer = getGuildManager(event).setServerChannel(UUID.fromString(serverIdString), selection.getId());
+        if (channelServer == null) {
+            event.reply("Failed to set server channel").setEphemeral(true).queue();
+            return;
+        }
+
+        if (channelServer != server) {
+            event.getHook().sendMessage(selection.getAsMention() + " is already associated with " + inlineServerDisplayName(channelServer.getName()))
+                    .setEphemeral(true).queue();
+            return;
+        }
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+
+        event.getHook().sendMessage("Server channel set to " + selection.getAsMention()).setEphemeral(true).queue();
+        logAction(event, "set the server channel for " + inlineServerDisplayName(server.getName()) + " to " + selection.getAsMention());
+    }
+
+    public static void onUnsetServerChannelButton(ButtonInteractionEvent event, String serverIdString) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        Server channelServer = getGuildManager(event).setServerChannel(UUID.fromString(serverIdString), null);
+        if (channelServer != null) {
+            event.reply("Failed to unset server channel").setEphemeral(true).queue();
+            return;
+        }
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+
+        event.getHook().sendMessage("Server channel unset").setEphemeral(true).queue();
+        logActionWithServer(event, "unset the server channel for", server.getName());
     }
 
 }

@@ -27,6 +27,7 @@ public class ServerData implements Server {
     private @Nullable String token;
 
     private @Nullable String dashboardMessageId;
+    private @Nullable String serverChannelId;
 
     @JsonCreator
     public ServerData(
@@ -86,6 +87,14 @@ public class ServerData implements Server {
 
     public void setDashboardMessageId(@Nullable String dashboardMessageId) {
         this.dashboardMessageId = dashboardMessageId;
+    }
+
+    public @Nullable String getServerChannelId() {
+        return serverChannelId;
+    }
+
+    public void setServerChannelId(@Nullable String serverChannelId) {
+        this.serverChannelId = serverChannelId;
     }
 
     @Override

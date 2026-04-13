@@ -1,12 +1,14 @@
 package net.trollyloki.discit;
 
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.components.selections.EntitySelectMenu;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.entities.messages.MessageSnapshot;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
@@ -184,6 +186,13 @@ public final class InteractionUtils {
         }
 
         return builder;
+    }
+
+    private static final List<ChannelType> GUILD_MESSAGE_CHANNEL_TYPES = ChannelType.guildTypes().stream().filter(ChannelType::isMessage).toList();
+
+    public static EntitySelectMenu.Builder messageChannelSelect(String customId) {
+        return EntitySelectMenu.create(customId, EntitySelectMenu.SelectTarget.CHANNEL)
+                .setChannelTypes(GUILD_MESSAGE_CHANNEL_TYPES);
     }
 
     public static StringSelectMenu createIntSelectMenu(String customId, IntFunction<String> labelFunction, int current, int[] ascendingOptions) {

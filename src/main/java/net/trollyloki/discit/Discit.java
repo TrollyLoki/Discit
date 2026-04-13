@@ -85,10 +85,7 @@ public class Discit {
                 Commands.slash(SAVE_COMMAND_NAME, "Create and download a save from a server").setContexts(InteractionContextType.GUILD),
                 Commands.slash(UPLOAD_COMMAND_NAME, "Upload a save file to one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.message(UPLOAD_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
-                Commands.slash(BACKUP_COMMAND_NAME, "Create and download a save from each server").setContexts(InteractionContextType.GUILD).addOptions(
-                        new OptionData(OptionType.STRING, "name", "Backup file name", true)
-                                .setMaxLength(100) // arbitrary
-                ),
+                Commands.slash(BACKUP_COMMAND_NAME, "Create a backup of saves from one or more servers").setContexts(InteractionContextType.GUILD),
                 Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(
                         InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL
                 ).setIntegrationTypes(IntegrationType.GUILD_INSTALL, IntegrationType.USER_INSTALL)

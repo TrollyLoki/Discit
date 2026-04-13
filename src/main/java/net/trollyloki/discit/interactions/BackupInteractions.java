@@ -1,8 +1,14 @@
 package net.trollyloki.discit.interactions;
 
+import net.dv8tion.jda.api.components.label.Label;
+import net.dv8tion.jda.api.components.selections.SelectMenu;
+import net.dv8tion.jda.api.components.textinput.TextInput;
+import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
-import net.dv8tion.jda.api.interactions.commands.OptionMapping;
+import net.dv8tion.jda.api.interactions.modals.ModalMapping;
+import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.SaveInfo;
@@ -37,21 +43,46 @@ public final class BackupInteractions {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackupInteractions.class);
 
     public static final String
-            BACKUP_COMMAND_NAME = "backup";
+            BACKUP_COMMAND_NAME = "backup",
+            BACKUP_MODAL_ID = "backup";
 
     public static void onBackupCommand(SlashCommandInteractionEvent event) {
         Map<UUID, Server> servers = getAllServersIfAdmin(event);
         if (servers == null)
             return;
 
-        String name = event.getOption("name", OptionMapping::getAsString);
+        event.replyModal(Modal.create(BACKUP_MODAL_ID, "Create Backup").addComponents(
+                Label.of("Servers", "The server(s) that should be backed up",
+                        serverSelectMenu("servers", servers)
+                                .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
+                                .setPlaceholder("Select one or more servers")
+                                .setDefaultValues(servers.keySet().stream().limit(SelectMenu.OPTIONS_MAX_AMOUNT).map(UUID::toString).toList())
+                                .build()),
+                Label.of("Backup Name", "The name of the backup file (individual save names will include both the server name and this name)",
+                        TextInput.create("name", TextInputStyle.SHORT)
+                                .setMaxLength(100) // arbitrary
+                                .build())
+        ).build()).queue();
+    }
+
+    public static void onBackupModal(ModalInteractionEvent event) {
+        ModalMapping serverIds = event.getValue("servers");
+        if (serverIds == null) {
+            event.reply("Please select servers").setEphemeral(true).queue();
+            return;
+        }
+
+        List<Server> servers = getServersIfAdmin(event, serverIds.getAsStringList());
+        if (servers == null)
+            return;
+
+        ModalMapping name = event.getValue("name");
         if (name == null) {
             event.reply("Please provide a name for the backup").setEphemeral(true).queue();
             return;
         }
 
-        Server[] serverArray = servers.values().toArray(Server[]::new);
-        List<String> messageLines = Collections.synchronizedList(Arrays.stream(serverArray)
+        List<String> messageLines = Collections.synchronizedList(servers.stream()
                 .map(server -> "Saving " + inlineServerDisplayName(server.getName()) + "...")
                 .collect(Collectors.toList())
         );
@@ -66,15 +97,15 @@ public final class BackupInteractions {
             }
         };
 
-        LOGGER.info("Backing up {} servers", serverArray.length);
+        LOGGER.info("Backing up {} servers", servers.size());
 
         // Save all servers
-        @SuppressWarnings("unchecked") CompletableFuture<@Nullable SaveInfo>[] futures = new CompletableFuture[serverArray.length];
-        for (int i = 0; i < serverArray.length; i++) {
+        @SuppressWarnings("unchecked") CompletableFuture<@Nullable SaveInfo>[] futures = new CompletableFuture[servers.size()];
+        for (int i = 0; i < servers.size(); i++) {
             final int index = i;
-            Server server = serverArray[index];
+            Server server = servers.get(index);
 
-            CompletableFuture<@Nullable SaveInfo> saveFuture = saveAsyncWithMDC(server, server.getName() + "_" + name);
+            CompletableFuture<@Nullable SaveInfo> saveFuture = saveAsyncWithMDC(server, server.getName() + "_" + name.getAsString());
             saveFuture.thenApplyAsync(withMDC(_ ->
                     "Saved " + inlineServerDisplayName(server.getName())
             )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
@@ -107,7 +138,7 @@ public final class BackupInteractions {
                 CompletableFuture.runAsync(withMDC(() -> {
                     try {
                         // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
-                        Message message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name + ".zip")).complete(false);
+                        Message message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
                         logAction(event, "backed up " + saves.size() + " server" + (saves.size() == 1 ? "" : "s") + " to " + message.getAttachments().getFirst().getUrl());
                         updateMessage.run();
                     } catch (Exception e) {
@@ -115,8 +146,8 @@ public final class BackupInteractions {
                     }
                 }));
 
-                for (int i = 0; i < serverArray.length; i++) {
-                    Server server = serverArray[i];
+                for (int i = 0; i < servers.size(); i++) {
+                    Server server = servers.get(i);
                     SaveInfo saveInfo = saves.get(i);
                     if (saveInfo == null) continue;
 

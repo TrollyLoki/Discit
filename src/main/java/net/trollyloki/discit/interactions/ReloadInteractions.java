@@ -1,6 +1,7 @@
 package net.trollyloki.discit.interactions;
 
 import net.dv8tion.jda.api.components.label.Label;
+import net.dv8tion.jda.api.components.selections.SelectMenu;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
@@ -44,7 +45,7 @@ public final class ReloadInteractions {
         event.replyModal(Modal.create(RELOAD_MODAL_ID, "Reload Session").addComponents(
                 Label.of("Servers", "The server(s) that should be reloaded",
                         serverSelectMenu("servers", servers)
-                                .setMaxValues(10)
+                                .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
                                 .setPlaceholder("Select one or more servers")
                                 .build())
         ).build()).queue();

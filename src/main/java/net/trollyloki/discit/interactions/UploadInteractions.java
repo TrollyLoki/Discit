@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.components.ModalTopLevelComponent;
 import net.dv8tion.jda.api.components.attachmentupload.AttachmentUpload;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.label.LabelChildComponent;
+import net.dv8tion.jda.api.components.selections.SelectMenu;
 import net.dv8tion.jda.api.components.selections.StringSelectMenu;
 import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.Message;
@@ -87,7 +88,7 @@ public final class UploadInteractions {
 
         modalCallback.replyModal(createUploadModal(UPLOAD_MODAL_ID,
                 Label.of("Servers", "The server(s) that the save should be uploaded to", serverSelectMenu("servers", servers)
-                        .setMaxValues(10)
+                        .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
                         .setPlaceholder("Select one or more servers")
                         .build()),
                 saveFileComponentCreator

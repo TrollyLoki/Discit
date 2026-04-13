@@ -22,8 +22,7 @@ import static net.trollyloki.discit.interactions.AddInteractions.*;
 import static net.trollyloki.discit.interactions.AdvancedGameSettingsInteractions.*;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.discit.interactions.AnalyzeSaveInteractions.onAnalyzeSaveFromMessage;
-import static net.trollyloki.discit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
-import static net.trollyloki.discit.interactions.BackupInteractions.onBackupCommand;
+import static net.trollyloki.discit.interactions.BackupInteractions.*;
 import static net.trollyloki.discit.interactions.ChangePasswordInteractions.*;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.INVALIDATE_TOKENS_BUTTON_ID;
 import static net.trollyloki.discit.interactions.InvalidateTokensInteractions.onInvalidateTokensButton;
@@ -169,6 +168,7 @@ public class InteractionListener extends ListenerAdapter {
                 case RELOAD_MODAL_ID -> onReloadModal(event);
                 case SAVE_MODAL_ID -> onSaveModal(event, id.length > 1 ? id[1] : null);
                 case UPLOAD_MODAL_ID -> onUploadModal(event, id.length > 1 ? id[1] : null);
+                case BACKUP_MODAL_ID -> onBackupModal(event);
                 case RENAME_MODAL_ID -> onRenameModal(event, id[1]);
                 case CHANGE_PASSWORD_MODAL_ID -> onChangePasswordModal(event, id[1], id[2]);
                 default -> LOGGER.warn("Unknown modal ID {}", event.getModalId());

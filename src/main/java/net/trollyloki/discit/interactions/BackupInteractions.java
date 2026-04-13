@@ -1,5 +1,6 @@
 package net.trollyloki.discit.interactions;
 
+import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.utils.FileUpload;
@@ -59,6 +60,12 @@ public final class BackupInteractions {
                 .setEphemeral(isDashboard(event))
                 .queue();
 
+        Runnable updateMessage = () -> {
+            synchronized (messageLines) {
+                event.getHook().editOriginal(String.join("\n", messageLines)).queue();
+            }
+        };
+
         LOGGER.info("Backing up {} servers", serverArray.length);
 
         // Save all servers
@@ -72,9 +79,7 @@ public final class BackupInteractions {
                     "Saved " + inlineServerDisplayName(server.getName())
             )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                 messageLines.set(index, message);
-                synchronized (messageLines) {
-                    event.getHook().editOriginal(String.join("\n", messageLines)).queue();
-                }
+                updateMessage.run();
             }));
 
             // Replace exceptional completion will null value to make sure below allOf call succeeds
@@ -83,14 +88,12 @@ public final class BackupInteractions {
 
         // Download and zip save files
         CompletableFuture.allOf(futures).thenRunAsync(withMDC(() -> {
-            List<String> finalMessageLines = new ArrayList<>(futures.length);
             Map<Integer, SaveInfo> saves = new HashMap<>(futures.length);
             for (int i = 0; i < futures.length; i++) {
                 SaveInfo saveInfo = futures[i].join();
                 if (saveInfo == null) continue;
 
                 saves.put(i, saveInfo);
-                finalMessageLines.add(saveInfo.formatted(serverArray[i].getName()));
             }
 
             if (saves.isEmpty()) {
@@ -98,21 +101,28 @@ public final class BackupInteractions {
                 return;
             }
 
-            String serversString = saves.size() + " server" + (saves.size() == 1 ? "" : "s");
-            messageLines.add("Downloading save files from " + serversString + "...");
-            synchronized (messageLines) {
-                event.getHook().editOriginal(String.join("\n", messageLines)).queue();
-            }
-
             PipedInputStream uploadStream = new PipedInputStream();
             try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
-                event.getHook().editOriginal(String.join("\n", finalMessageLines))
-                        .setFiles(FileUpload.fromData(uploadStream, name + ".zip"))
-                        .queue(message -> logAction(event, "backed up " + serversString + " to " + message.getAttachments().getFirst().getUrl()));
 
-                for (Map.Entry<Integer, SaveInfo> entry : saves.entrySet()) {
-                    Server server = serverArray[entry.getKey()];
-                    SaveInfo saveInfo = entry.getValue();
+                CompletableFuture.runAsync(withMDC(() -> {
+                    try {
+                        // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
+                        Message message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name + ".zip")).complete(false);
+                        logAction(event, "backed up " + saves.size() + " server" + (saves.size() == 1 ? "" : "s") + " to " + message.getAttachments().getFirst().getUrl());
+                        updateMessage.run();
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to send message with zip file attachment", e);
+                    }
+                }));
+
+                for (int i = 0; i < serverArray.length; i++) {
+                    Server server = serverArray[i];
+                    SaveInfo saveInfo = saves.get(i);
+                    if (saveInfo == null) continue;
+
+                    messageLines.set(i, "Downloading save from " + inlineServerDisplayName(server.getName()) + "...");
+                    updateMessage.run();
+                    messageLines.set(i, saveInfo.formatted(server.getName()));
 
                     LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
 

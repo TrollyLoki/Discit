@@ -344,10 +344,7 @@ public final class ServerOptionsInteractions {
 
         LOGGER.info("Reloading {} to apply server options", serverNameForLog(server.getName()));
 
-        reloadAsyncWithMDC(server).thenApplyAsync(withMDC(_ -> {
-            logActionWithServer(event, "reloaded", server.getName());
-            return "Successfully reloaded " + inlineServerDisplayName(server.getName());
-        })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
+        reloadHelper(event, server).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
             event.getHook().editOriginalComponents(TextDisplay.of(message))
                     .useComponentsV2().queue();
         }));

@@ -101,10 +101,7 @@ public final class ReloadInteractions {
 
             LOGGER.info("Reloading {}", serverNameForLog(server.getName()));
 
-            reloadAsyncWithMDC(server).thenApplyAsync(withMDC(_ -> {
-                logActionWithServer(interaction, "reloaded", server.getName());
-                return "Successfully reloaded " + inlineServerDisplayName(server.getName());
-            })).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
+            reloadHelper(interaction, server).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                 messageLines.set(index, message);
                 synchronized (messageLines) {
                     interaction.getHook().editOriginal(String.join("\n", messageLines)).queue();

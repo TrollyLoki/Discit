@@ -339,11 +339,32 @@ public final class InteractionUtils {
         }
     }
 
-    public static CompletableFuture<@Nullable Void> reloadAsyncWithMDC(Server server) {
+    public static CompletableFuture<Boolean> reloadAsyncWithMDC(Server server) {
+        String saveName = Discit.RELOAD_SAVE_NAME;
         return requestAsyncWithMDC(server, "reload", httpsApi -> {
-            httpsApi.save(Discit.RELOAD_SAVE_NAME);
-            httpsApi.loadSave(Discit.RELOAD_SAVE_NAME, false);
+            Instant beforeSave = Instant.now();
+            httpsApi.save(saveName);
+
+            // Verify that we aren't going to inadvertently load an old save
+            Session session = httpsApi.enumerateSessions().current();
+            if (session == null) return false;
+            SaveHeader header = session.find(saveName);
+            if (header == null) return false;
+            if (header.saveTimestamp().isBefore(beforeSave)) return false;
+
+            httpsApi.loadSave(saveName, false);
+            return true;
         });
+    }
+
+    public static CompletableFuture<String> reloadHelper(Interaction interaction, Server server) {
+        return reloadAsyncWithMDC(server).thenApplyAsync(withMDC(verified -> {
+            if (!verified) {
+                return "Reload verification for " + inlineServerDisplayName(server.getName()) + " failed, please try again";
+            }
+            logActionWithServer(interaction, "reloaded", server.getName());
+            return "Successfully reloaded " + inlineServerDisplayName(server.getName());
+        }));
     }
 
     public static CompletableFuture<SaveInfo> saveAsyncWithMDC(Server server, @Nullable String saveName) {

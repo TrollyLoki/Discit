@@ -206,7 +206,12 @@ public class DashboardUpdater {
         List<ContainerChildComponent> components = new ArrayList<>();
 
         components.add(TextDisplay.of("## " + escapedServerName(name)));
-        components.add(TextDisplay.of(status != null ? status.toString() : "Unknown"));
+
+        String statusString = status != null ? status.toString() : "Unknown";
+        if (gameState != null && gameState.isGamePaused()) {
+            statusString += " – Paused";
+        }
+        components.add(TextDisplay.of(statusString));
 
         if (message != null) {
             components.add(Separator.createDivider(Separator.Spacing.SMALL));

@@ -58,7 +58,8 @@ public final class ListInteractions {
             LIST_DEAUTHENTICATE_BUTTON_ID = "list-deauthenticate",
             LIST_REMOVE_BUTTON_ID = "list-remove",
             SERVER_CHANNEL_SELECT_ID = "server-channel",
-            UNSET_SERVER_CHANNEL_BUTTON_ID = "unset-server-channel";
+            UNSET_SERVER_CHANNEL_BUTTON_ID = "unset-server-channel",
+            ALLOW_RELOADING_BUTTON_ID = "allow-reloading";
 
     private static Container serverDetailsContainer(Interaction interaction, String serverIdString, Server server) {
         List<Button> buttons = new ArrayList<>(3);
@@ -85,7 +86,14 @@ public final class ListInteractions {
                 TextDisplay.of("Slash commands sent in this channel will select this server automatically"),
                 ActionRow.of(serverChannelSelect.setPlaceholder("Select a channel").build()),
                 ActionRow.of(Button.secondary(buildId(UNSET_SERVER_CHANNEL_BUTTON_ID, serverIdString), "Unset Server Channel")
-                        .withDisabled(currentServerChannel == null))
+                        .withDisabled(currentServerChannel == null)),
+                Separator.createInvisible(Separator.Spacing.SMALL),
+                TextDisplay.of("### Allow Reloading"),
+                TextDisplay.of("If enabled, anyone can reload this server from its server channel"),
+                ActionRow.of(Button.secondary(
+                        buildId(ALLOW_RELOADING_BUTTON_ID, serverIdString, !server.isAllowReloading()),
+                        "Allow Reloading"
+                ).withEmoji(server.isAllowReloading() ? CHECKBOX_CHECKED_EMOJI : CHECKBOX_EMPTY_EMOJI))
         );
     }
 
@@ -267,6 +275,21 @@ public final class ListInteractions {
 
         event.getHook().sendMessage("Server channel unset").setEphemeral(true).queue();
         logActionWithServer(event, "unset the server channel for", server.getName());
+    }
+
+    public static void onAllowReloadingButton(ButtonInteractionEvent event, String serverIdString, boolean value) {
+        Server server = getServerIfAdmin(event, serverIdString);
+        if (server == null)
+            return;
+
+        if (!getGuildManager(event).setAllowReloading(UUID.fromString(serverIdString), value)) {
+            event.reply("Failed to set allow reloading value").setEphemeral(true).queue();
+            return;
+        }
+
+        event.editComponents(detailsComponents(event, serverIdString, server)).useComponentsV2().queue();
+
+        logActionWithServer(event, (value ? "allowed" : "disallowed") + " reloading", server.getName());
     }
 
 }

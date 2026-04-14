@@ -76,19 +76,19 @@ public final class SettingsInteractions {
         }
         event.replyComponents(Container.of(
                 TextDisplay.of(title),
-                Separator.createDivider(Separator.Spacing.LARGE),
+                Separator.createDivider(Separator.Spacing.SMALL),
                 TextDisplay.of("### Administrator Role"),
                 TextDisplay.of("Users with this role will have full administrator access to **all added servers**"),
                 ActionRow.of(adminRoleSelect.setPlaceholder("Select a role").setDisabled(!canManageGuild).build()),
-                Separator.createInvisible(Separator.Spacing.LARGE),
+                Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Dashboard Channel"),
                 TextDisplay.of("Live server statuses will be displayed in this channel"),
                 ActionRow.of(dashboardChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
-                Separator.createInvisible(Separator.Spacing.LARGE),
+                Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Log Channel"),
                 TextDisplay.of("A message will be sent to this channel each time an action that requires administrator access is performed"),
                 ActionRow.of(logChannelSelect.setPlaceholder("Select a channel").setDisabled(!canManageGuild).build()),
-                Separator.createInvisible(Separator.Spacing.LARGE),
+                Separator.createInvisible(Separator.Spacing.SMALL),
                 TextDisplay.of("### Offline Alert Delay"),
                 TextDisplay.of("If a server goes and stays offline for this amount of time a message mentioning the administrator role will be sent to the log channel"),
                 ActionRow.of(offlineAlertDelaySelect)

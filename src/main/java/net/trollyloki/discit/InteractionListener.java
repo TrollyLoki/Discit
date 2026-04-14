@@ -122,6 +122,7 @@ public class InteractionListener extends ListenerAdapter {
                 case LIST_DEAUTHENTICATE_BUTTON_ID -> onDeauthenticateButtonOnList(event, id[1]);
                 case LIST_REMOVE_BUTTON_ID -> onListRemoveButton(event, id[1]);
                 case UNSET_SERVER_CHANNEL_BUTTON_ID -> onUnsetServerChannelButton(event, id[1]);
+                case ALLOW_RELOADING_BUTTON_ID -> onAllowReloadingButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DASHBOARD_REFRESH_BUTTON_ID -> onDashboardRefreshButton(event, id[1]);
                 case RELOAD_BUTTON_ID -> onReloadButton(event, id[1]);
                 case SAVE_BUTTON_ID -> onSaveButton(event, id[1]);

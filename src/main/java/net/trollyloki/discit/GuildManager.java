@@ -240,6 +240,19 @@ public class GuildManager {
         }
     }
 
+    public boolean setAllowReloading(UUID serverId, boolean allowReloading) {
+        ServerData server = data.getServers().get(serverId);
+        if (server != null) {
+            server.setAllowReloading(allowReloading);
+            save();
+
+            return true;
+        } else {
+            LOGGER.warn("Could not set allow reloading value for unknown server {}", serverId);
+            return false;
+        }
+    }
+
     public @Nullable String getDashboardMessageId(UUID serverId) {
         ServerData server = data.getServers().get(serverId);
         if (server != null) {

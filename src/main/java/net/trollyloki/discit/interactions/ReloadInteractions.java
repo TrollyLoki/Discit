@@ -38,6 +38,13 @@ public final class ReloadInteractions {
             RELOAD_MODAL_ID = "reload";
 
     public static void onReloadCommand(SlashCommandInteractionEvent event) {
+        // Check special case first: this is a server channel and reloading is allowed
+        Map.Entry<UUID, Server> channelServer = getGuildManager(event).getChannelServer(event.getChannelId());
+        if (channelServer != null && channelServer.getValue().isAllowReloading()) {
+            reload(event, Collections.singletonList(channelServer.getValue()));
+            return;
+        }
+
         Map<UUID, Server> servers = getAllServersIfAdmin(event);
         if (servers == null)
             return;

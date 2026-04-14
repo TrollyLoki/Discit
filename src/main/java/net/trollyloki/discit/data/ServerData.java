@@ -25,6 +25,7 @@ public class ServerData implements Server {
 
     private @Nullable String name;
     private @Nullable String token;
+    private boolean allowReloading = false;
 
     private @Nullable String dashboardMessageId;
     private @Nullable String serverChannelId;
@@ -79,6 +80,15 @@ public class ServerData implements Server {
 
     public void setToken(@Nullable String token) {
         this.token = token;
+    }
+
+    @Override
+    public boolean isAllowReloading() {
+        return allowReloading;
+    }
+
+    public void setAllowReloading(boolean allowReloading) {
+        this.allowReloading = allowReloading;
     }
 
     public @Nullable String getDashboardMessageId() {

@@ -25,6 +25,8 @@ public interface Server {
         return getToken() != null;
     }
 
+    boolean isAllowReloading();
+
     QueryApi queryApi(@Nullable Duration timeout) throws SocketException;
 
     HttpsApi httpsApi(@Nullable Duration timeout);

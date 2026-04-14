@@ -26,7 +26,10 @@ The `/add` command can be used to add a server given a host name or IP address a
   - If needed, the server can be removed and re-added to update the fingerprint
 - If the newly added server is unclaimed, the app can claim it and automatically obtain authentication
 
-The `/list` command can be used to view server details or remove servers.
+### Per-Server Settings
+The `/list` command can be used to view server details, remove servers, or change per-server settings.
+- A server channel can be chosen in which the reload, save, and upload commands automatically select the associated server
+- Anyone can be allowed to use `/reload` in a server's channel
 
 ### Authentication
 Authentication is required to access almost all server functions. The only exception is that the dashboard can still display game state information as long as no client password is set.

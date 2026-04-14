@@ -47,7 +47,7 @@ public final class BackupInteractions {
             BACKUP_MODAL_ID = "backup";
 
     public static void onBackupCommand(SlashCommandInteractionEvent event) {
-        Map<UUID, Server> servers = getAllServersIfAdmin(event);
+        Map<UUID, Server> servers = getAllServersIfAdmin(event, true);
         if (servers == null)
             return;
 

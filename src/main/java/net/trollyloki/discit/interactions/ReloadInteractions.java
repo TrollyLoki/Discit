@@ -42,6 +42,11 @@ public final class ReloadInteractions {
         if (servers == null)
             return;
 
+        if (servers.size() == 1) {
+            reload(event, Collections.singletonList(servers.values().iterator().next()));
+            return;
+        }
+
         event.replyModal(Modal.create(RELOAD_MODAL_ID, "Reload Session").addComponents(
                 Label.of("Servers", "The server(s) that should be reloaded",
                         serverSelectMenu("servers", servers)

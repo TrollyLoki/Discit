@@ -86,13 +86,7 @@ public final class UploadInteractions {
         if (servers == null)
             return;
 
-        modalCallback.replyModal(createUploadModal(UPLOAD_MODAL_ID,
-                Label.of("Servers", "The server(s) that the save should be uploaded to", serverSelectMenu("servers", servers)
-                        .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
-                        .setPlaceholder("Select one or more servers")
-                        .build()),
-                saveFileComponentCreator
-        )).queue();
+        modalCallback.replyModal(createUploadModal(servers, saveFileComponentCreator)).queue();
     }
 
     public static void onUploadButton(ButtonInteractionEvent event, String serverIdString) {
@@ -100,13 +94,24 @@ public final class UploadInteractions {
         if (server == null)
             return;
 
-        event.replyModal(createUploadModal(buildId(UPLOAD_MODAL_ID, serverIdString),
-                TextDisplay.of("Uploading save to " + inlineServerDisplayName(server.getName())),
-                AttachmentUpload::of
-        )).queue();
+        event.replyModal(createUploadModal(Collections.singletonMap(serverIdString, server), AttachmentUpload::of)).queue();
     }
 
-    private static Modal createUploadModal(String customId, ModalTopLevelComponent serversComponent, Function<String, LabelChildComponent> saveFileComponentCreator) {
+    private static Modal createUploadModal(Map<?, Server> servers, Function<String, LabelChildComponent> saveFileComponentCreator) {
+        String customId;
+        ModalTopLevelComponent serversComponent;
+        if (servers.size() == 1) {
+            Map.Entry<?, Server> entry = servers.entrySet().iterator().next();
+            customId = buildId(UPLOAD_MODAL_ID, entry.getKey());
+            serversComponent = TextDisplay.of("Uploading save to " + inlineServerDisplayName(entry.getValue().getName()));
+        } else {
+            customId = UPLOAD_MODAL_ID;
+            serversComponent = Label.of("Servers", "The server(s) that the save should be uploaded to", serverSelectMenu("servers", servers)
+                    .setMaxValues(SelectMenu.OPTIONS_MAX_AMOUNT)
+                    .setPlaceholder("Select one or more servers")
+                    .build());
+        }
+
         return Modal.create(customId, "Upload Save").addComponents(
                 serversComponent,
                 Label.of("Save File", saveFileComponentCreator.apply("save")),

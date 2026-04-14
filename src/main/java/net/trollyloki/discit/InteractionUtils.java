@@ -135,16 +135,31 @@ public final class InteractionUtils {
         return server;
     }
 
-    public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback) {
+    public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback, boolean ignoreServerChannels) {
         if (isNotAdmin(callback))
             return null;
 
-        Map<UUID, Server> servers = getGuildManager(callback).getServers();
+        GuildManager guildManager = getGuildManager(callback);
+
+        if (!ignoreServerChannels) {
+            // If this is a server channel, return a singleton map of the server
+            Map.Entry<UUID, Server> channelServer = guildManager.getChannelServer(callback.getChannelId());
+            if (channelServer != null) {
+                return Map.ofEntries(channelServer);
+            }
+        }
+
+        // Otherwise return a map of all servers, unless there isn't any
+        Map<UUID, Server> servers = guildManager.getServers();
         if (servers.isEmpty()) {
             callback.reply("No servers added").setEphemeral(true).queue();
             return null;
         }
         return servers;
+    }
+
+    public static @Nullable Map<UUID, Server> getAllServersIfAdmin(IReplyCallback callback) {
+        return getAllServersIfAdmin(callback, false);
     }
 
     public static @Nullable List<Server> getServersIfAdmin(IReplyCallback callback, Collection<String> serverIdStrings) {
@@ -172,11 +187,11 @@ public final class InteractionUtils {
         return TextInput.create(customId, TextInputStyle.SHORT).setMaxLength(32);
     }
 
-    public static StringSelectMenu.Builder serverSelectMenu(String customId, Map<UUID, Server> servers) {
+    public static StringSelectMenu.Builder serverSelectMenu(String customId, Map<?, Server> servers) {
         StringSelectMenu.Builder builder = StringSelectMenu.create(customId);
 
         int count = 0;
-        for (Map.Entry<UUID, Server> entry : servers.entrySet()) {
+        for (Map.Entry<?, Server> entry : servers.entrySet()) {
             if (count == StringSelectMenu.OPTIONS_MAX_AMOUNT) {
                 LOGGER.warn("Truncated server select options from {} to {}", servers.size(), count);
                 break;

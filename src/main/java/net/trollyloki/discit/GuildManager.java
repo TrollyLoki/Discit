@@ -256,10 +256,11 @@ public class GuildManager {
         }
     }
 
-    public @Nullable Server getChannelServer(String channelId) {
-        for (ServerData server : data.getServers().values()) {
-            if (channelId.equals(server.getServerChannelId())) {
-                return server;
+    public Map.@Nullable Entry<UUID, Server> getChannelServer(@Nullable String channelId) {
+        if (channelId == null) return null;
+        for (Map.Entry<UUID, ServerData> entry : data.getServers().entrySet()) {
+            if (channelId.equals(entry.getValue().getServerChannelId())) {
+                return Map.entry(entry.getKey(), entry.getValue());
             }
         }
         return null;
@@ -279,10 +280,10 @@ public class GuildManager {
         ServerData server = data.getServers().get(serverId);
         if (server != null) {
 
-            Server channelServer = channelId == null ? null : getChannelServer(channelId);
+            Map.Entry<UUID, Server> channelServer = getChannelServer(channelId);
             if (channelServer != null) {
                 // Channel is already associated with a server
-                return channelServer;
+                return channelServer.getValue();
             }
 
             server.setServerChannelId(channelId);

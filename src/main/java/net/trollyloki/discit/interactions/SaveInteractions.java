@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,11 +49,7 @@ public final class SaveInteractions {
         if (servers == null)
             return;
 
-        event.replyModal(createSaveModal(SAVE_MODAL_ID,
-                Label.of("Server", serverSelectMenu("server", servers)
-                        .setPlaceholder("Select a server")
-                        .build())
-        )).queue();
+        event.replyModal(createSaveModal(servers)).queue();
     }
 
     public static void onSaveButton(ButtonInteractionEvent event, String serverIdString) {
@@ -60,12 +57,23 @@ public final class SaveInteractions {
         if (server == null)
             return;
 
-        event.replyModal(createSaveModal(buildId(SAVE_MODAL_ID, serverIdString),
-                TextDisplay.of("Creating save on " + inlineServerDisplayName(server.getName()))
-        )).queue();
+        event.replyModal(createSaveModal(Collections.singletonMap(serverIdString, server))).queue();
     }
 
-    private static Modal createSaveModal(String customId, ModalTopLevelComponent serverComponent) {
+    private static Modal createSaveModal(Map<?, Server> servers) {
+        String customId;
+        ModalTopLevelComponent serverComponent;
+        if (servers.size() == 1) {
+            Map.Entry<?, Server> entry = servers.entrySet().iterator().next();
+            customId = buildId(SAVE_MODAL_ID, entry.getKey());
+            serverComponent = TextDisplay.of("Creating save on " + inlineServerDisplayName(entry.getValue().getName()));
+        } else {
+            customId = SAVE_MODAL_ID;
+            serverComponent = Label.of("Server", serverSelectMenu("server", servers)
+                    .setPlaceholder("Select a server")
+                    .build());
+        }
+
         return Modal.create(customId, "Create Save").addComponents(
                 serverComponent,
                 Label.of("Save Name", "Optional", TextInput.create("name", TextInputStyle.SHORT)

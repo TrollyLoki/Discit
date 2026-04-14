@@ -140,9 +140,8 @@ public final class BackupInteractions {
                         // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
                         Message message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
                         logAction(event, "backed up " + saves.size() + " server" + (saves.size() == 1 ? "" : "s") + " to " + message.getAttachments().getFirst().getUrl());
-                        updateMessage.run();
                     } catch (Exception e) {
-                        LOGGER.error("Failed to send message with zip file attachment", e);
+                        LOGGER.error("Failed to add zip file attachment", e);
                     }
                 }));
 
@@ -153,16 +152,28 @@ public final class BackupInteractions {
 
                     messageLines.set(i, "Downloading save from " + inlineServerDisplayName(server.getName()) + "...");
                     updateMessage.run();
-                    messageLines.set(i, saveInfo.formatted(server.getName()));
 
                     LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
 
+                    zipStream.putNextEntry(new ZipEntry(saveInfo.name() + SaveFileReader.EXTENSION));
                     try (InputStream saveData = server.httpsApi(Duration.ofSeconds(3)).downloadSave(saveInfo.name())) {
-                        zipStream.putNextEntry(new ZipEntry(saveInfo.name() + SaveFileReader.EXTENSION));
                         saveData.transferTo(zipStream);
+                        messageLines.set(i, saveInfo.formatted(server.getName()));
+                    } catch (Exception e) {
+                        messageLines.set(i, "Failed to download save from " + inlineServerDisplayName(server.getName()));
+                    } finally {
                         zipStream.closeEntry();
                     }
                 }
+
+                try {
+                    synchronized (messageLines) {
+                        event.getHook().editOriginal(String.join("\n", messageLines)).complete();
+                    }
+                } catch (Exception e) {
+                    LOGGER.error("Failed to send final message edit", e);
+                }
+
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

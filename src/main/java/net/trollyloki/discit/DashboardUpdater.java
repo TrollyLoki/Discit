@@ -113,17 +113,22 @@ public class DashboardUpdater {
         });
     }
 
+    private void cancelMessageEditFuture() {
+        if (messageEditFuture != null && !messageEditFuture.isDone()) {
+            LOGGER.info("Cancelling previous message edit request for {}", serverNameForLog(name));
+            messageEditFuture.cancel(false);
+            try {
+                messageEditFuture.join();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     public synchronized void shutdown() {
         executor.execute(() -> {
             setMDC(guildManager);
 
-            if (messageEditFuture != null && !messageEditFuture.isDone()) {
-                messageEditFuture.cancel(true);
-                try {
-                    messageEditFuture.join();
-                } catch (Exception ignored) {
-                }
-            }
+            cancelMessageEditFuture();
 
             GuildMessageChannel channel = guildManager.getDashboardChannel();
             if (channel == null) return;
@@ -140,10 +145,7 @@ public class DashboardUpdater {
         executor.execute(() -> {
             setMDC(guildManager);
 
-            if (messageEditFuture != null && !messageEditFuture.isDone()) {
-                LOGGER.info("Cancelling previous message edit request for {}", serverNameForLog(name));
-                messageEditFuture.cancel(false);
-            }
+            cancelMessageEditFuture();
 
             GuildMessageChannel channel = guildManager.getDashboardChannel();
             if (channel == null) {

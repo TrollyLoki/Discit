@@ -306,13 +306,16 @@ public final class InteractionUtils {
             HttpsApi httpsApi = server.httpsApi(Duration.ofSeconds(3));
             return action.apply(httpsApi);
         })).exceptionally(withMDC((Function<Throwable, T>) exception -> {
-            String message = " to " + actionString + " " + inlineServerDisplayName(server.getName());
+            String message = actionString + " " + inlineServerDisplayName(server.getName());
             // Thrown exceptions are always wrapped in a CompletionException
-            if (exception.getCause() instanceof ApiException apiException) {
-                message = "Unable" + message + ": " + apiException.getMessage();
+            if (exception.getCause() instanceof GameNotRunningException) {
+                message = "Cannot " + message + ": No session is running";
+                LOGGER.warn("Refusing to execute request on {}", serverNameForLog(server.getName()), exception.getCause());
+            } else if (exception.getCause() instanceof ApiException apiException) {
+                message = "Unable to " + message + ": " + apiException.getMessage();
                 LOGGER.warn("Unable to execute request on {}: {} ({})", serverNameForLog(server.getName()), apiException.getMessage(), apiException.getErrorCode());
             } else {
-                message = "Failed" + message;
+                message = "Failed to " + message;
                 LOGGER.warn("Failed to execute request on {}", serverNameForLog(server.getName()), exception.getCause());
             }
             throw new FormattedException(message, exception.getCause());
@@ -339,11 +342,25 @@ public final class InteractionUtils {
         }
     }
 
+    private static class GameNotRunningException extends IllegalStateException {
+        private GameNotRunningException(String message) {
+            super(message);
+        }
+    }
+
+    private static void saveIfRunning(HttpsApi httpsApi, String saveName) {
+        if (!httpsApi.queryServerState().isGameRunning()) {
+            // Game is not running, save function will hang if executed
+            throw new GameNotRunningException("Cannot create save because game is not running");
+        }
+        httpsApi.save(saveName);
+    }
+
     public static CompletableFuture<Boolean> reloadAsyncWithMDC(Server server) {
         String saveName = Discit.RELOAD_SAVE_NAME;
         return requestAsyncWithMDC(server, "reload", httpsApi -> {
             Instant beforeSave = Instant.now();
-            httpsApi.save(saveName);
+            saveIfRunning(httpsApi, saveName);
 
             // Verify that we aren't going to inadvertently load an old save
             Session session = httpsApi.enumerateSessions().current();
@@ -376,7 +393,7 @@ public final class InteractionUtils {
                 actualSaveName = defaultSaveName(sessionName, LocalDateTime.now(Clock.systemUTC()));
             }
 
-            httpsApi.save(actualSaveName);
+            saveIfRunning(httpsApi, actualSaveName);
             Instant fallbackTimestamp = Instant.now();
 
             SaveHeader saveHeader = null;

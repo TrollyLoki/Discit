@@ -34,7 +34,7 @@ public class ServerMonitor implements Closeable {
     private final Server server;
 
     private final GameStateCache gameStateCache;
-    private final DashboardUpdater dashboardUpdater;
+    private final ServerInfoCache infoCache;
 
     private final ScheduledExecutorService requestServerStateExecutor;
     private final ScheduledExecutorService receiveServerStateExecutor;
@@ -60,7 +60,7 @@ public class ServerMonitor implements Closeable {
         this.server = server;
 
         gameStateCache = new GameStateCache(guildManager, serverId, server);
-        dashboardUpdater = new DashboardUpdater(guildManager, serverId, server.hasToken());
+        infoCache = new ServerInfoCache(guildManager, serverId, server.hasToken());
 
         requestServerStateExecutor = Executors.newSingleThreadScheduledExecutor(serverThreadFactory(serverId, "State Request Thread"));
         requestServerStateExecutor.submit(this::requestServerState);
@@ -72,8 +72,8 @@ public class ServerMonitor implements Closeable {
         scheduleOfflineFuture();
     }
 
-    public DashboardUpdater getDashboardUpdater() {
-        return dashboardUpdater;
+    public ServerInfoCache getInfoCache() {
+        return infoCache;
     }
 
     public void refresh() {
@@ -96,7 +96,7 @@ public class ServerMonitor implements Closeable {
         }
 
         gameStateCache.shutdownNow();
-        dashboardUpdater.shutdown();
+        infoCache.shutdown();
     }
 
     private synchronized QueryApi getQueryApi() throws SocketException {
@@ -201,7 +201,7 @@ public class ServerMonitor implements Closeable {
     }
 
     private void updateDashboardInfo(ServerStatus status, @Nullable Duration ping) {
-        dashboardUpdater.setInfo(server.getName(), status, gameStateCache.getMessage(), gameStateCache.getGameState(), ping);
+        infoCache.setInfo(server.getName(), status, gameStateCache.getMessage(), gameStateCache.getGameState(), ping);
     }
 
 }

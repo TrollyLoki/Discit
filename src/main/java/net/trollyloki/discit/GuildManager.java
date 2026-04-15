@@ -231,7 +231,7 @@ public class GuildManager {
             save();
 
             ServerMonitor monitor = monitors.get(serverId);
-            if (monitor != null) monitor.getDashboardUpdater().setAuthenticated(server.hasToken());
+            if (monitor != null) monitor.getInfoCache().setAuthenticated(server.hasToken());
 
             return true;
         } else {

@@ -9,9 +9,7 @@ import org.slf4j.MDC;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadFactory;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 @NullMarked
 public final class LoggingUtils {
@@ -34,39 +32,54 @@ public final class LoggingUtils {
         MDC.put(GUILD, guildManager.getGuild().getName());
     }
 
-    public static <T extends @Nullable Object, R extends @Nullable Object> Function<T, R> withMDC(Function<T, R> function) {
+    public static <T extends @Nullable Object, U extends @Nullable Object, R extends @Nullable Object> BiFunction<T, U, R> withMDC(BiFunction<T, U, R> biFunction) {
         Map<String, String> mdc = MDC.getCopyOfContextMap();
-        return t -> {
+        return (t, u) -> {
             MDC.setContextMap(mdc);
             try {
-                return function.apply(t);
+                return biFunction.apply(t, u);
             } finally {
                 MDC.clear();
             }
         };
     }
 
+    public static <T extends @Nullable Object, U extends @Nullable Object> BiConsumer<T, U> withMDC(BiConsumer<T, U> biConsumer) {
+        BiFunction<T, U, ?> withMDC = withMDC((t, u) -> {
+            biConsumer.accept(t, u);
+            return null;
+        });
+        return withMDC::apply;
+    }
+
+    public static <T extends @Nullable Object, R extends @Nullable Object> Function<T, R> withMDC(Function<T, R> function) {
+        BiFunction<T, ?, R> withMDC = withMDC((t, _) -> {
+            return function.apply(t);
+        });
+        return t -> withMDC.apply(t, null);
+    }
+
     public static <T extends @Nullable Object> Consumer<T> withMDC(Consumer<T> consumer) {
-        Function<T, ?> function = withMDC(t -> {
+        BiFunction<T, ?, ?> withMDC = withMDC((t, _) -> {
             consumer.accept(t);
             return null;
         });
-        return function::apply;
+        return t -> withMDC.apply(t, null);
     }
 
     public static <R extends @Nullable Object> Supplier<R> withMDC(Supplier<R> supplier) {
-        Function<?, R> function = withMDC(_ -> {
+        BiFunction<?, ?, R> withMDC = withMDC((_, _) -> {
             return supplier.get();
         });
-        return () -> function.apply(null);
+        return () -> withMDC.apply(null, null);
     }
 
     public static Runnable withMDC(Runnable runnable) {
-        Function<?, ?> function = withMDC(_ -> {
+        BiFunction<?, ?, ?> withMDC = withMDC((_, _) -> {
             runnable.run();
             return null;
         });
-        return () -> function.apply(null);
+        return () -> withMDC.apply(null, null);
     }
 
     public static @Nullable String serverNameForLog(@Nullable String serverName) {

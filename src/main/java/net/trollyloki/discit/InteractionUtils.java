@@ -359,15 +359,30 @@ public final class InteractionUtils {
     public static CompletableFuture<Boolean> reloadAsyncWithMDC(Server server) {
         String saveName = Discit.RELOAD_SAVE_NAME;
         return requestAsyncWithMDC(server, "reload", httpsApi -> {
-            Instant beforeSave = Instant.now();
+
+            Optional<Instant> previousTimestamp = Optional.ofNullable(httpsApi.enumerateSessions().current())
+                    .map(session -> session.find(saveName))
+                    .map(SaveHeader::saveTimestamp);
+
             saveIfRunning(httpsApi, saveName);
 
-            // Verify that we aren't going to inadvertently load an old save
+            // Verify that we aren't going to inadvertently load the previous save
             Session session = httpsApi.enumerateSessions().current();
-            if (session == null) return false;
+            if (session == null) {
+                LOGGER.warn("Reload verification failed: Current session is null");
+                return false;
+            }
+
             SaveHeader header = session.find(saveName);
-            if (header == null) return false;
-            if (header.saveTimestamp().isBefore(beforeSave)) return false;
+            if (header == null) {
+                LOGGER.warn("Reload verification failed: Could not find save header");
+                return false;
+            }
+
+            if (previousTimestamp.isPresent() && !header.saveTimestamp().isAfter(previousTimestamp.get())) {
+                LOGGER.warn("Reload verification failed: Save is older than expected");
+                return false;
+            }
 
             httpsApi.loadSave(saveName, false);
             return true;

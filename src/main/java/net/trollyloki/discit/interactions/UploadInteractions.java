@@ -160,7 +160,7 @@ public final class UploadInteractions {
             case STRING_SELECT -> {
                 attachment = ATTACHMENT_CACHE.pop(event.getUser(), Integer.parseInt(save.getAsStringList().getFirst()));
                 if (attachment == null) {
-                    event.reply("Attachment context expired, please try again").queue();
+                    event.reply("Attachment context expired, please try again").setEphemeral(true).queue();
                     return;
                 }
             }

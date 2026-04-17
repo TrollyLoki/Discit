@@ -8,11 +8,13 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.exceptions.RateLimitedException;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.trollyloki.discit.InteractionUtils;
+import net.trollyloki.discit.MessageLinesUpdater;
 import net.trollyloki.discit.SaveInfo;
 import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.save.SaveFileReader;
@@ -25,9 +27,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -93,103 +96,124 @@ public final class BackupInteractions {
                 .setEphemeral(isDashboard(event))
                 .queue();
 
-        Runnable updateMessage = () -> {
-            synchronized (messageLines) {
-                event.getHook().editOriginal(String.join("\n", messageLines)).queue();
-            }
-        };
+        MessageLinesUpdater messageLinesUpdater = new MessageLinesUpdater(event.getHook(), messageLines);
 
         LOGGER.info("Backing up {} servers", servers.size());
 
-        // Save all servers
-        @SuppressWarnings("unchecked") CompletableFuture<@Nullable SaveInfo>[] futures = new CompletableFuture[servers.size()];
-        for (int i = 0; i < servers.size(); i++) {
-            final int index = i;
-            Server server = servers.get(index);
-
-            CompletableFuture<@Nullable SaveInfo> saveFuture = saveAsyncWithMDC(server, server.getName() + "_" + name.getAsString());
-            saveFuture.thenApplyAsync(withMDC(_ ->
-                    "Saved " + inlineServerDisplayName(server.getName())
-            )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
-                messageLines.set(index, message);
-                updateMessage.run();
-            }));
-
-            // Replace exceptional completion will null value to make sure below allOf call succeeds
-            futures[index] = saveFuture.exceptionally(_ -> null);
-        }
-
-        // Download and zip save files
-        CompletableFuture.allOf(futures).thenRunAsync(withMDC(() -> {
-            Map<Integer, SaveInfo> saves = new HashMap<>(futures.length);
-            for (int i = 0; i < futures.length; i++) {
-                SaveInfo saveInfo = futures[i].join();
-                if (saveInfo == null) continue;
-
-                saves.put(i, saveInfo);
-            }
-
-            if (saves.isEmpty()) {
-                // nothing to download, abort early
-                return;
-            }
-
+        CompletableFuture.runAsync(withMDC(() -> {
             PipedInputStream uploadStream = new PipedInputStream();
             try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
 
-                CompletableFuture.runAsync(withMDC(() -> {
-                    Message message;
-                    try {
-                        // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
-                        message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
-                    } catch (Exception e) {
-                        if (e instanceof ErrorResponseException error && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
-                            event.getHook().editOriginal("Backup is too large to attach").queue();
-                        } else {
-                            event.getHook().editOriginal("Failed to attach zip file").queue();
-                        }
-                        LOGGER.error("Failed to add zip file attachment", e);
-                        return;
-                    }
-                    logAction(event, "backed up " + saves.size() + " server" + (saves.size() == 1 ? "" : "s") + " to " + message.getAttachments().getFirst().getUrl());
-                }));
+                record SaveDownload(SaveInfo info, byte[] data) {
+                }
 
+                // Create and download saves from all servers
+                List<CompletableFuture<SaveDownload>> futures = new ArrayList<>(servers.size());
                 for (int i = 0; i < servers.size(); i++) {
+                    final int index = i;
+                    Server server = servers.get(index);
+
+                    String saveName = server.getName() + "_" + name.getAsString();
+                    CompletableFuture<SaveDownload> saveFuture = saveAsyncWithMDC(server, saveName).thenComposeAsync(withMDC(saveInfo -> {
+
+                        messageLines.set(index, "Downloading save from " + inlineServerDisplayName(server.getName()) + "...");
+                        messageLinesUpdater.update();
+
+                        LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
+
+                        return requestAsyncWithMDC(server, "download save from", httpsApi -> {
+                            try (InputStream saveData = httpsApi.downloadSave(saveInfo.name())) {
+                                // Buffer the entire save file for parallel downloading during zipping process
+                                // Since save files are normally only 5~15 MW this shouldn't be too bad
+                                return new SaveDownload(saveInfo, saveData.readAllBytes());
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+
+                    }));
+
+                    saveFuture.thenApplyAsync(withMDC(_ ->
+                            "Downloaded save from " + inlineServerDisplayName(server.getName())
+                    )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
+                        messageLines.set(index, message);
+                        messageLinesUpdater.update();
+                    }));
+
+                    futures.add(saveFuture);
+                }
+
+                // JDA seems to deadlock if the file upload request is submitted before any data is available
+                CompletableFuture<@Nullable Message> uploadFuture = null;
+
+                // Zip save files
+                int saveCount = 0;
+                for (int i = 0; i < futures.size(); i++) {
                     Server server = servers.get(i);
-                    SaveInfo saveInfo = saves.get(i);
-                    if (saveInfo == null) continue;
+                    SaveDownload saveDownload;
 
-                    messageLines.set(i, "Downloading save from " + inlineServerDisplayName(server.getName()) + "...");
-                    updateMessage.run();
+                    try {
+                        saveDownload = futures.get(i).join();
+                    } catch (CompletionException | CancellationException e) {
+                        continue; // skip failed download
+                    }
 
-                    LOGGER.info("Downloading save \"{}\" from {}", saveInfo.name(), serverNameForLog(server.getName()));
+                    if (uploadFuture == null) {
+                        // Now that there is data available it is safe to submit the upload request
+                        uploadFuture = CompletableFuture.supplyAsync(withMDC(() -> {
+                            try {
+                                // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
+                                return event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
+                            } catch (RateLimitedException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }));
+                    }
 
-                    zipStream.putNextEntry(new ZipEntry(saveInfo.name() + SaveFileReader.EXTENSION));
-                    try (InputStream saveData = server.httpsApi(Duration.ofSeconds(3)).downloadSave(saveInfo.name())) {
-                        saveData.transferTo(zipStream);
-                        messageLines.set(i, saveInfo.formatted(server.getName()));
+                    saveCount++;
+                    zipStream.putNextEntry(new ZipEntry(saveDownload.info.name() + SaveFileReader.EXTENSION));
+                    try {
+                        zipStream.write(saveDownload.data);
+                        messageLines.set(i, saveDownload.info.formatted(server.getName()));
                     } catch (Exception e) {
-                        messageLines.set(i, "Failed to download save from " + inlineServerDisplayName(server.getName()));
+                        messageLines.set(i, "Failed to zip save from " + inlineServerDisplayName(server.getName()));
+                        LOGGER.error("Failed to zip save from {}", serverNameForLog(server.getName()), e);
                     } finally {
                         zipStream.closeEntry();
                     }
+                    messageLinesUpdater.update();
                 }
 
-                try {
-                    synchronized (messageLines) {
-                        event.getHook().editOriginal(String.join("\n", messageLines)).complete();
-                    }
-                } catch (Exception e) {
-                    LOGGER.error("Failed to send final message edit", e);
+                // Wait for final message update to complete before closing upload stream
+                messageLinesUpdater.stop();
+
+                // Handle final upload completion
+                if (uploadFuture != null) {
+                    final int finalSaveCount = saveCount;
+                    uploadFuture.whenCompleteAsync(withMDC((message, throwable) -> {
+
+                        if (throwable != null) {
+                            if (throwable.getCause() instanceof ErrorResponseException error
+                                    && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
+                                event.getHook().editOriginal("Backup was too large to attach").queue();
+                            } else {
+                                event.getHook().editOriginal("Failed to attach zip file").queue();
+                            }
+                            LOGGER.error("Failed to upload zip file attachment", throwable);
+                        }
+
+                        if (message != null) {
+                            Message.Attachment attachment = message.getAttachments().getFirst();
+                            logAction(event, "backed up " + finalSaveCount + " server" + (finalSaveCount == 1 ? "" : "s") + " to " + attachment.getUrl());
+                        }
+
+                    }));
                 }
 
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                event.getHook().editOriginal("Error creating backup").queue();
+                LOGGER.error("Error creating backup", e);
             }
-        })).exceptionallyAsync(withMDC(throwable -> {
-            event.getHook().editOriginal("Failed to transfer data").queue();
-            LOGGER.error("Error creating backup file", throwable);
-            return null;
         }));
     }
 

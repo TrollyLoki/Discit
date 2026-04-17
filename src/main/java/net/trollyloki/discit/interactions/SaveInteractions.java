@@ -101,12 +101,12 @@ public final class SaveInteractions {
         ModalMapping name = event.getValue("name");
         String saveName = name != null ? name.getAsString() : null;
 
-        record SaveDownload(SaveInfo info, InputStream data) {
-        }
-
         event.deferReply(isDashboard(event)).queue();
 
         LOGGER.info("Saving {} as \"{}\"", serverNameForLog(server.getName()), saveName);
+
+        record SaveDownload(SaveInfo info, InputStream data) {
+        }
 
         saveAsyncWithMDC(server, saveName).thenComposeAsync(withMDC(saveInfo -> {
 

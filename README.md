@@ -54,6 +54,7 @@ The dashboard channel displays live status information about all added servers a
 ### Slash Commands
 Slash commands allow certain dashboard actions to be performed in other channels and for multiple servers at once.
 - The `/reload` command can be used to save and reload one or more servers' sessions at the same time
+  - If any players are connected confirmation is requested before actually reloading the server(s)
 - The `/save` command can be used to create a save on a server and automatically upload it to the Discord channel where the command is used
 - The `/upload` command can be used to upload a save file to one or more servers simultaneously
   - Alternatively, the message context command feature (right click on a message -> Apps -> Discit -> Upload save file) can be used to upload a save file directly from a Discord attachment

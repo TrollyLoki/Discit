@@ -249,7 +249,7 @@ public final class ListInteractions {
         }
 
         if (channelServer != server) {
-            event.getHook().sendMessage(selection.getAsMention() + " is already associated with " + inlineServerDisplayName(channelServer.getName()))
+            event.reply(selection.getAsMention() + " is already associated with " + inlineServerDisplayName(channelServer.getName()))
                     .setEphemeral(true).queue();
             return;
         }

@@ -1,5 +1,8 @@
-package net.trollyloki.discit;
+package net.trollyloki.discit.monitoring;
 
+import net.trollyloki.discit.Discit;
+import net.trollyloki.discit.GuildManager;
+import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.query.QueryApi;
 import net.trollyloki.jicsit.server.query.ServerState;
 import net.trollyloki.jicsit.server.query.ServerStatus;

@@ -1,4 +1,4 @@
-package net.trollyloki.discit;
+package net.trollyloki.discit.monitoring;
 
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.actionrow.ActionRowChildComponent;
@@ -10,8 +10,8 @@ import net.dv8tion.jda.api.components.textdisplay.TextDisplay;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import net.dv8tion.jda.api.utils.Timestamp;
+import net.trollyloki.discit.GuildManager;
 import net.trollyloki.discit.interactions.ChangePasswordInteractions;
-import net.trollyloki.discit.updater.DashboardUpdater;
 import net.trollyloki.jicsit.server.https.ServerGameState;
 import net.trollyloki.jicsit.server.query.ServerStatus;
 import org.jspecify.annotations.NullMarked;

@@ -1,4 +1,4 @@
-package net.trollyloki.discit;
+package net.trollyloki.discit.interactions.cache;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

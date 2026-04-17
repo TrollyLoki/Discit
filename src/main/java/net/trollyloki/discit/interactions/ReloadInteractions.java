@@ -12,7 +12,7 @@ import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.Server;
-import net.trollyloki.discit.ServerSelectionCache;
+import net.trollyloki.discit.interactions.cache.ServerSelectionCache;
 import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

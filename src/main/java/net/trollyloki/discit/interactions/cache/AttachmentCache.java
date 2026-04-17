@@ -1,4 +1,4 @@
-package net.trollyloki.discit;
+package net.trollyloki.discit.interactions.cache;
 
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.User;

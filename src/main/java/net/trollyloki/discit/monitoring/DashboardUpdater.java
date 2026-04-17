@@ -1,4 +1,4 @@
-package net.trollyloki.discit.updater;
+package net.trollyloki.discit.monitoring;
 
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.trollyloki.discit.GuildManager;

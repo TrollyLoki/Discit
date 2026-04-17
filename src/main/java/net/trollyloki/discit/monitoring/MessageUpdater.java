@@ -1,4 +1,4 @@
-package net.trollyloki.discit.updater;
+package net.trollyloki.discit.monitoring;
 
 import net.dv8tion.jda.api.components.MessageTopLevelComponent;
 import net.dv8tion.jda.api.entities.Message;

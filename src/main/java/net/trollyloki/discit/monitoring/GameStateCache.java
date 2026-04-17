@@ -1,5 +1,7 @@
-package net.trollyloki.discit;
+package net.trollyloki.discit.monitoring;
 
+import net.trollyloki.discit.GuildManager;
+import net.trollyloki.discit.Server;
 import net.trollyloki.jicsit.server.https.HttpsApi;
 import net.trollyloki.jicsit.server.https.PrivilegeLevel;
 import net.trollyloki.jicsit.server.https.ServerGameState;

@@ -7,8 +7,10 @@ import net.dv8tion.jda.api.components.textinput.TextInputStyle;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.interactions.modals.ModalMapping;
 import net.dv8tion.jda.api.modals.Modal;
+import net.dv8tion.jda.api.requests.ErrorResponse;
 import net.dv8tion.jda.api.utils.FileUpload;
 import net.trollyloki.discit.InteractionUtils;
 import net.trollyloki.discit.SaveInfo;
@@ -136,13 +138,20 @@ public final class BackupInteractions {
             try (ZipOutputStream zipStream = new ZipOutputStream(new PipedOutputStream(uploadStream))) {
 
                 CompletableFuture.runAsync(withMDC(() -> {
+                    Message message;
                     try {
                         // Need to run this with shouldQueue false to ensure it doesn't block other queued requests
-                        Message message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
-                        logAction(event, "backed up " + saves.size() + " server" + (saves.size() == 1 ? "" : "s") + " to " + message.getAttachments().getFirst().getUrl());
+                        message = event.getHook().editOriginalAttachments(FileUpload.fromData(uploadStream, name.getAsString() + ".zip")).complete(false);
                     } catch (Exception e) {
+                        if (e instanceof ErrorResponseException error && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
+                            event.getHook().editOriginal("Backup is too large to attach").queue();
+                        } else {
+                            event.getHook().editOriginal("Failed to attach zip file").queue();
+                        }
                         LOGGER.error("Failed to add zip file attachment", e);
+                        return;
                     }
+                    logAction(event, "backed up " + saves.size() + " server" + (saves.size() == 1 ? "" : "s") + " to " + message.getAttachments().getFirst().getUrl());
                 }));
 
                 for (int i = 0; i < servers.size(); i++) {

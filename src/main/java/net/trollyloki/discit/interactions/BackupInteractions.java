@@ -134,7 +134,7 @@ public final class BackupInteractions {
                     }));
 
                     saveFuture.thenApplyAsync(withMDC(_ ->
-                            "Downloaded save from " + inlineServerDisplayName(server.getName())
+                            "Saved " + inlineServerDisplayName(server.getName())
                     )).exceptionally(withMDC(InteractionUtils::exceptionMessage)).thenAcceptAsync(withMDC(message -> {
                         messageLines.set(index, message);
                         messageLinesUpdater.update();
@@ -197,7 +197,7 @@ public final class BackupInteractions {
                                     && error.getErrorResponse() == ErrorResponse.REQUEST_ENTITY_TOO_LARGE) {
                                 event.getHook().editOriginal("Backup was too large to attach").queue();
                             } else {
-                                event.getHook().editOriginal("Failed to attach zip file").queue();
+                                event.getHook().editOriginal("Failed to attach backup").queue();
                             }
                             LOGGER.error("Failed to upload zip file attachment", throwable);
                         }

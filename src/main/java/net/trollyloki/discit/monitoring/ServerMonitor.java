@@ -148,10 +148,16 @@ public class ServerMonitor implements Closeable {
             if (offlineAlertFuture != null) offlineAlertFuture.cancel(true);
             Duration alertDelay = guildManager.getOfflineAlertDelay();
             if (alertDelay != null) {
-                offlineAlertFuture = updateExecutor.schedule(
-                        () -> guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down"),
-                        alertDelay.toNanos(), TimeUnit.NANOSECONDS
-                );
+                offlineAlertFuture = updateExecutor.schedule(() -> {
+
+                    if (guildManager.getOfflineAlertDelay() == null) {
+                        // Offline alerts were disabled after this was scheduled, do not send the alert
+                        return;
+                    }
+
+                    guildManager.logAlert(inlineServerDisplayName(server.getName()) + " went down");
+
+                }, alertDelay.toNanos(), TimeUnit.NANOSECONDS);
             }
 
             updateExecutor.submit(() -> {

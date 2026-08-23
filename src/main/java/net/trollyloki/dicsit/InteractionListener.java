@@ -181,7 +181,8 @@ public class InteractionListener extends ListenerAdapter {
                 case CANCEL_DEFERRED_RESTART_BUTTON_ID ->
                         onCancelDeferredRestartButton(event, id[1], Boolean.parseBoolean(id[2]));
                 case DEPLOY_SAVE_CANCEL_BUTTON_ID -> onDeploySaveCancelButton(event, id[1], id[2]);
-                case DEPLOY_SAVE_CONFIRM_BUTTON_ID -> onDeploySaveConfirmButton(event, id[1], id[2]);
+                case DEPLOY_SAVE_CONFIRM_BUTTON_ID ->
+                        onDeploySaveConfirmButton(event, id[1], id[2], Boolean.parseBoolean(id[3]));
                 case DEPLOY_RESTART_CANCEL_BUTTON_ID -> onDeployRestartCancelButton(event, id[1]);
                 case DEPLOY_RESTART_CONFIRM_BUTTON_ID -> onDeployRestartConfirmButton(event, id[1]);
                 default -> LOGGER.warn("Unknown button ID {}", event.getComponentId());

@@ -96,7 +96,8 @@ public final class DeployInteractions {
 
         UUID key = ATTACHMENT_CACHE.put(new AttachmentInfo(attachment));
         callback.reply("Are you sure you want to deploy " + attachment.getUrl() + " to **all " + eventServers.size() + "** event servers?").setComponents(ActionRow.of(
-                Button.primary(buildId(DEPLOY_SAVE_CONFIRM_BUTTON_ID, callback.getUser().getId(), key), "Deploy Save"),
+                Button.primary(buildId(DEPLOY_SAVE_CONFIRM_BUTTON_ID, callback.getUser().getId(), key, false), "Deploy Save"),
+                Button.secondary(buildId(DEPLOY_SAVE_CONFIRM_BUTTON_ID, callback.getUser().getId(), key, true), "Deploy Save and Restart"),
                 Button.secondary(buildId(DEPLOY_SAVE_CANCEL_BUTTON_ID, callback.getUser().getId(), key), "Cancel")
         )).setEphemeral(isDashboard(callback)).queue();
     }
@@ -120,7 +121,7 @@ public final class DeployInteractions {
         }
     }
 
-    public static void onDeploySaveConfirmButton(ButtonInteractionEvent event, String userId, String keyString) {
+    public static void onDeploySaveConfirmButton(ButtonInteractionEvent event, String userId, String keyString, boolean restart) {
         if (!event.getUser().getId().equals(userId)) {
             // Ignore
             event.deferEdit().queue();
@@ -170,9 +171,11 @@ public final class DeployInteractions {
                         throw new CompletionException(e);
                     }
                 }, uploadExecutor).thenRunAsync(withMDC(() -> {
-
-                    guildManager.deferLoad(serverId, saveName);
-
+                    if (restart) {
+                        guildManager.deferRestart(serverId);
+                    } else {
+                        guildManager.deferLoad(serverId, saveName);
+                    }
                 })).whenCompleteAsync(withMDC((_, throwable) -> {
                     int uploadingCount = --counters[0];
                     int successCount;
@@ -185,7 +188,10 @@ public final class DeployInteractions {
 
                     if (uploadingCount == 0) {
                         messageEditExecutor.shutdown();
-                        logAction(event, "uploaded and deferred loading " + attachment.getUrl() + " on **" + successCount + "** event servers");
+                        String action = restart
+                                ? "uploaded " + attachment.getUrl() + " and deferred restarting"
+                                : "uploaded and deferred loading " + attachment.getUrl() + " on";
+                        logAction(event, action + " **" + successCount + "** event servers");
                     }
 
                     StringBuilder prefixBuilder = new StringBuilder();
@@ -194,8 +200,14 @@ public final class DeployInteractions {
                     }
                     if (successCount > 0) {
                         if (!prefixBuilder.isEmpty()) prefixBuilder.append('\n');
-                        prefixBuilder.append(attachment.getUrl()).append(" will be loaded on **")
-                                .append(successCount).append("** event servers when there are no players connected");
+                        if (restart) {
+                            prefixBuilder.append("**").append(successCount)
+                                    .append("** event servers will be restarted when there are no players connected");
+                        } else {
+                            prefixBuilder.append(attachment.getUrl())
+                                    .append(" will be loaded on **").append(successCount)
+                                    .append("** event servers when there are no players connected");
+                        }
                     }
 
                     StringBuilder errorLinesBuilder = new StringBuilder();

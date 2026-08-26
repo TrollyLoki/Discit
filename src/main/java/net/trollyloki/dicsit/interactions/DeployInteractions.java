@@ -17,6 +17,7 @@ import net.trollyloki.dicsit.Server;
 import net.trollyloki.dicsit.interactions.cache.AutoKeyedCache;
 import net.trollyloki.jicsit.save.SaveFileReader;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -248,6 +249,7 @@ public final class DeployInteractions {
         // These objects must ONLY be accessed via the messageEditExecutor
         List<String> errorList = new ArrayList<>();
         int[] counters = {eventServers.size(), 0};
+        @Nullable CompletableFuture<?>[] editFuture = {null};
 
         Function<Integer, String> uploadingLineGenerator = count -> actioning + " **" + count + "** event servers...";
         callback.getHook().editOriginal(uploadingLineGenerator.apply(eventServers.size()))
@@ -293,8 +295,9 @@ public final class DeployInteractions {
                     errorLinesBuilder.insert(0, line).insert(0, '\n');
                 }
 
-                callback.getHook().editOriginal(prefixBuilder.append(errorLinesBuilder).toString())
-                        .setComponents(Collections.emptySet()).queue();
+                if (editFuture[0] != null) editFuture[0].cancel(true);
+                editFuture[0] = callback.getHook().editOriginal(prefixBuilder.append(errorLinesBuilder).toString())
+                        .setComponents(Collections.emptySet()).submit();
             }), messageEditExecutor);
 
             i++;

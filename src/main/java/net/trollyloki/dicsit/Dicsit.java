@@ -30,10 +30,7 @@ import static net.trollyloki.dicsit.interactions.AddInteractions.ADD_COMMAND_NAM
 import static net.trollyloki.dicsit.interactions.AnalyzeSaveInteractions.ANALYZE_SAVE_CONTEXT_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.BackupInteractions.BACKUP_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.DeferredActionsInteractions.DEFERRED_ACTIONS_COMMAND_NAME;
-import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_COMMAND_NAME;
-import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_RESTART_SUBCOMMAND_NAME;
-import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_SAVE_CONTEXT_COMMAND_NAME;
-import static net.trollyloki.dicsit.interactions.DeployInteractions.DEPLOY_SAVE_SUBCOMMAND_NAME;
+import static net.trollyloki.dicsit.interactions.DeployInteractions.*;
 import static net.trollyloki.dicsit.interactions.ListInteractions.LIST_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.ReloadInteractions.RELOAD_COMMAND_NAME;
 import static net.trollyloki.dicsit.interactions.ReloadInteractions.RESTART_COMMAND_NAME;
@@ -143,7 +140,11 @@ public class Dicsit {
                         new SubcommandData(DEPLOY_SAVE_SUBCOMMAND_NAME, "Deploy a save to all event servers").addOptions(
                                 new OptionData(OptionType.ATTACHMENT, "save", "Save file to deploy", true)
                         ),
-                        new SubcommandData(DEPLOY_RESTART_SUBCOMMAND_NAME, "Deploy a restart of all event servers")
+                        new SubcommandData(DEPLOY_RESTART_SUBCOMMAND_NAME, "Deploy a restart of all event servers"),
+                        new SubcommandData(DEPLOY_LOCK_SUBCOMMAND_NAME, "Lock all event servers behind a password").addOptions(
+                                new OptionData(OptionType.STRING, "password", "Client password", true)
+                        ),
+                        new SubcommandData(DEPLOY_UNLOCK_SUBCOMMAND_NAME, "Unlock all event servers")
                 ),
                 Commands.message(DEPLOY_SAVE_CONTEXT_COMMAND_NAME).setContexts(InteractionContextType.GUILD),
                 Commands.message(ANALYZE_SAVE_CONTEXT_COMMAND_NAME).setContexts(

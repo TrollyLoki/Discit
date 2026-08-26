@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.events.interaction.command.MessageContextInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.interactions.callbacks.IDeferrableCallback;
 import net.dv8tion.jda.api.interactions.callbacks.IReplyCallback;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.utils.NamedAttachmentProxy;
@@ -26,14 +27,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static net.trollyloki.dicsit.InteractionListener.buildId;
 import static net.trollyloki.dicsit.InteractionUtils.*;
-import static net.trollyloki.dicsit.LoggingUtils.serverNameForLog;
 import static net.trollyloki.dicsit.LoggingUtils.withMDC;
 
 @NullMarked
@@ -48,6 +50,8 @@ public final class DeployInteractions {
             DEPLOY_COMMAND_NAME = "deploy",
             DEPLOY_SAVE_SUBCOMMAND_NAME = "save",
             DEPLOY_RESTART_SUBCOMMAND_NAME = "restart",
+            DEPLOY_LOCK_SUBCOMMAND_NAME = "lock",
+            DEPLOY_UNLOCK_SUBCOMMAND_NAME = "unlock",
             DEPLOY_SAVE_CANCEL_BUTTON_ID = "deploy-save-cancel",
             DEPLOY_SAVE_CONFIRM_BUTTON_ID = "deploy-save-confirm",
             DEPLOY_RESTART_CANCEL_BUTTON_ID = "deploy-restart-cancel",
@@ -83,6 +87,13 @@ public final class DeployInteractions {
                 onDeploySaveHelper(event, attachment);
             }
             case DEPLOY_RESTART_SUBCOMMAND_NAME -> onDeployRestartHelper(event);
+            case DEPLOY_LOCK_SUBCOMMAND_NAME -> {
+
+                String password = event.getOption("password", "", OptionMapping::getAsString);
+
+                onDeployPasswordHelper(event, password);
+            }
+            case DEPLOY_UNLOCK_SUBCOMMAND_NAME -> onDeployPasswordHelper(event, "");
 
             case null -> LOGGER.error("Missing deploy subcommand");
             default -> LOGGER.error("Unknown deploy subcommand {}", event.getSubcommandName());
@@ -145,90 +156,36 @@ public final class DeployInteractions {
         NamedAttachmentProxy attachment = attachmentInfo.getProxy();
         String saveName = SaveFileReader.saveNameOf(attachment.getFileName());
         splitAndConsumeAttachment(event.getHook(), attachment, eventServers.size(), (uploadStreams, uploadExecutor) -> {
-
-            ExecutorService messageEditExecutor = Executors.newSingleThreadExecutor();
-            // These objects must ONLY be accessed via the messageEditExecutor
-            List<String> errorList = new ArrayList<>();
-            int[] counters = {eventServers.size(), 0};
-
-            Function<Integer, String> uploadingLineGenerator = count -> "Uploading " + attachment.getUrl() + " to **" + count + "** event servers...";
-            event.getHook().editOriginal(uploadingLineGenerator.apply(eventServers.size()))
-                    .setComponents(Collections.emptySet()).queue();
-
             GuildManager guildManager = getGuildManager(event);
-            int i = 0;
-            for (Map.Entry<UUID, Server> entry : eventServers.entrySet()) {
-                final int index = i;
-                UUID serverId = entry.getKey();
-                Server server = entry.getValue();
 
-                LOGGER.info("Deploying save \"{}\" to {}", saveName, serverNameForLog(server.getName()));
+            LOGGER.info("Deploying save \"{}\" to {} event servers", saveName, eventServers.size());
 
-                requestAsyncWithMDC(server, "upload to", httpsApi -> {
-                    try (InputStream uploadStream = uploadStreams[index]) {
-                        httpsApi.uploadSave(uploadStream, saveName, false, false);
-                    } catch (IOException e) {
-                        throw new CompletionException(e);
-                    }
-                }, uploadExecutor).thenRunAsync(withMDC(() -> {
-                    if (restart) {
-                        guildManager.deferRestart(serverId);
-                    } else {
-                        guildManager.deferLoad(serverId, saveName);
-                    }
-                })).whenCompleteAsync(withMDC((_, throwable) -> {
-                    int uploadingCount = --counters[0];
-                    int successCount;
-                    if (throwable != null) {
-                        successCount = counters[1];
-                        errorList.add(InteractionUtils.exceptionMessage(throwable));
-                    } else {
-                        successCount = ++counters[1];
-                    }
-
-                    if (uploadingCount == 0) {
-                        messageEditExecutor.shutdown();
-                        String action = restart
-                                ? "uploaded " + attachment.getUrl() + " and deferred restarting"
-                                : "uploaded and deferred loading " + attachment.getUrl() + " on";
-                        logAction(event, action + " **" + successCount + "** event servers");
-                    }
-
-                    StringBuilder prefixBuilder = new StringBuilder();
-                    if (uploadingCount > 0) {
-                        prefixBuilder.append(uploadingLineGenerator.apply(uploadingCount));
-                    }
-                    if (successCount > 0) {
-                        if (!prefixBuilder.isEmpty()) prefixBuilder.append('\n');
+            Function<String, String> successFeedback = restart
+                    ? servers -> servers + " will be restarted when there are no players connected"
+                    : servers -> attachment.getUrl() + " will be loaded on " + servers + " when there are no players connected";
+            String logAction = restart
+                    ? "uploaded " + attachment.getUrl() + " and deferred restarting"
+                    : "uploaded and deferred loading " + attachment.getUrl() + " on";
+            deployRequest(
+                    event,
+                    eventServers,
+                    "Uploading " + attachment.getUrl() + " to",
+                    successFeedback,
+                    logAction,
+                    (index, entry) -> requestAsyncWithMDC(entry.getValue(), "upload to", httpsApi -> {
+                        try (InputStream uploadStream = uploadStreams[index]) {
+                            httpsApi.uploadSave(uploadStream, saveName, false, false);
+                        } catch (IOException e) {
+                            throw new CompletionException(e);
+                        }
+                    }, uploadExecutor).thenRunAsync(withMDC(() -> {
                         if (restart) {
-                            prefixBuilder.append("**").append(successCount)
-                                    .append("** event servers will be restarted when there are no players connected");
+                            guildManager.deferRestart(entry.getKey());
                         } else {
-                            prefixBuilder.append(attachment.getUrl())
-                                    .append(" will be loaded on **").append(successCount)
-                                    .append("** event servers when there are no players connected");
+                            guildManager.deferLoad(entry.getKey(), saveName);
                         }
-                    }
-
-                    StringBuilder errorLinesBuilder = new StringBuilder();
-                    // Add as many error messages as can fit, starting from the "newest" ones at the end
-                    for (int l = errorList.size() - 1; l >= 0; l--) {
-                        String line = errorList.get(l);
-
-                        if (prefixBuilder.length() + errorLinesBuilder.length() + 1 + line.length() > Message.MAX_CONTENT_LENGTH) {
-                            // Adding this line would take us over the limit
-                            break;
-                        }
-
-                        errorLinesBuilder.insert(0, line).insert(0, '\n');
-                    }
-
-                    event.getHook().editOriginal(prefixBuilder.append(errorLinesBuilder).toString())
-                            .setComponents(Collections.emptySet()).queue();
-                }), messageEditExecutor);
-
-                i++;
-            }
+                    }))
+            );
         });
     }
 
@@ -259,6 +216,90 @@ public final class DeployInteractions {
 
         event.editMessage("**" + eventServers.size() + "** event servers will be restarted when there are no players connected")
                 .setComponents(Collections.emptySet()).queue();
+    }
+
+    public static void onDeployPasswordHelper(IReplyCallback callback, String password) {
+        Map<UUID, Server> eventServers = getAllEventServersIfAdmin(callback);
+        if (eventServers == null)
+            return;
+
+        callback.deferReply(isDashboard(callback)).queue();
+
+        LOGGER.info("{} the client password for {} event servers", password.isEmpty() ? "Removing" : "Setting", eventServers.size());
+
+        Function<String, String> successFeedback = password.isEmpty()
+                ? servers -> servers + " are no longer locked behind a password"
+                : servers -> servers + " have been locked behind the provided password";
+        deployRequest(
+                callback,
+                eventServers,
+                password.isEmpty() ? "Unlocking" : "Locking",
+                successFeedback,
+                password.isEmpty() ? "unlocked" : "locked",
+                (_, entry) -> requestAsyncWithMDC(entry.getValue(), "set client password for", httpsApi -> {
+                    httpsApi.setClientPassword(password);
+                })
+        );
+    }
+
+    private static void deployRequest(IDeferrableCallback callback, Map<UUID, Server> eventServers, String actioning, Function<String, String> successFeedback, String logAction, BiFunction<Integer, Map.Entry<UUID, Server>, CompletableFuture<?>> requestFunction) {
+
+        ExecutorService messageEditExecutor = Executors.newSingleThreadExecutor();
+        // These objects must ONLY be accessed via the messageEditExecutor
+        List<String> errorList = new ArrayList<>();
+        int[] counters = {eventServers.size(), 0};
+
+        Function<Integer, String> uploadingLineGenerator = count -> actioning + " **" + count + "** event servers...";
+        callback.getHook().editOriginal(uploadingLineGenerator.apply(eventServers.size()))
+                .setComponents(Collections.emptySet()).queue();
+
+        int i = 0;
+        for (Map.Entry<UUID, Server> entry : eventServers.entrySet()) {
+
+            requestFunction.apply(i, entry).whenCompleteAsync(withMDC((_, throwable) -> {
+                int uploadingCount = --counters[0];
+                int successCount;
+                if (throwable != null) {
+                    successCount = counters[1];
+                    errorList.add(InteractionUtils.exceptionMessage(throwable));
+                } else {
+                    successCount = ++counters[1];
+                }
+
+                if (uploadingCount == 0) {
+                    messageEditExecutor.shutdown();
+                    logAction(callback, logAction + " **" + successCount + "** event servers");
+                }
+
+                StringBuilder prefixBuilder = new StringBuilder();
+                if (uploadingCount > 0) {
+                    prefixBuilder.append(uploadingLineGenerator.apply(uploadingCount));
+                }
+                if (successCount > 0) {
+                    if (!prefixBuilder.isEmpty()) prefixBuilder.append('\n');
+                    prefixBuilder.append(successFeedback.apply("**" + successCount + "** event servers"));
+                }
+
+                StringBuilder errorLinesBuilder = new StringBuilder();
+                // Add as many error messages as can fit, starting from the "newest" ones at the end
+                for (int l = errorList.size() - 1; l >= 0; l--) {
+                    String line = errorList.get(l);
+
+                    if (prefixBuilder.length() + errorLinesBuilder.length() + 1 + line.length() > Message.MAX_CONTENT_LENGTH) {
+                        // Adding this line would take us over the limit
+                        break;
+                    }
+
+                    errorLinesBuilder.insert(0, line).insert(0, '\n');
+                }
+
+                callback.getHook().editOriginal(prefixBuilder.append(errorLinesBuilder).toString())
+                        .setComponents(Collections.emptySet()).queue();
+            }), messageEditExecutor);
+
+            i++;
+        }
+
     }
 
 }

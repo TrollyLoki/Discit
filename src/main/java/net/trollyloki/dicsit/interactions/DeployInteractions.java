@@ -270,7 +270,9 @@ public final class DeployInteractions {
 
                 if (uploadingCount == 0) {
                     messageEditExecutor.shutdown();
-                    logAction(callback, logAction + " **" + successCount + "** event servers");
+                    if (successCount > 0) {
+                        logAction(callback, logAction + " **" + successCount + "** event servers");
+                    }
                 }
 
                 StringBuilder prefixBuilder = new StringBuilder();
